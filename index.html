@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StealthKeep</title>
+<meta name="theme-color" content="#090D16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="StealthKeep">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style>
+:root{--bg:#090D16;--card:#1E293B;--acc:#10B981;--cy:#06B6D4;--amb:#F59E0B;--vio:#8B5CF6;--t1:#F8FAFC;--t2:#94A3B8}
+html,body{height:100%;background:var(--bg);color:var(--t2);font-family:Sarabun,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{padding-top:env(safe-area-inset-top)}
+.glass{background:rgba(30,41,59,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.14);border-radius:16px}
+.btn{background:var(--acc);color:#04120d;font-weight:700;border-radius:12px;padding:.55rem 1rem}
+.btn2{border:1px solid rgba(148,163,184,.3);color:var(--t1);border-radius:12px;padding:.5rem .9rem}
+input,select,textarea{background:#0F172A;border:1px solid rgba(148,163,184,.25);border-radius:12px;padding:.6rem .8rem;color:var(--t1);width:100%;outline:none}
+input:focus,select:focus{border-color:var(--cy)}
+.tag{font-size:.68rem;font-weight:700;padding:.1rem .45rem;border-radius:6px;border:1px solid}
+.blur{filter:blur(7px);transition:filter .25s;cursor:pointer}.blur.on,.blur:hover{filter:none}
+.scan{position:relative;overflow:hidden}.scan::after{content:"";position:absolute;left:0;right:0;height:2px;background:var(--cy);box-shadow:0 0 12px var(--cy);top:-4px;opacity:0}
+.scan:hover::after,.scan:active::after{opacity:1;animation:sc 1.2s linear infinite}@keyframes sc{to{top:100%}}
+.done{text-decoration:line-through;opacity:.5}
+.nav a{flex:1;text-align:center;font-size:.7rem;padding:.5rem 0 calc(.5rem + env(safe-area-inset-bottom))}
+.nav a.on{color:var(--acc);box-shadow:inset 0 2px 0 var(--acc)}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--cy)}.dot.f{background:var(--acc);border-color:var(--acc);box-shadow:0 0 10px var(--acc)}
+.key{height:60px;border-radius:50%;font-size:1.5rem;color:var(--t1);background:rgba(30,41,59,.7);border:1px solid rgba(148,163,184,.15)}.key:active{background:var(--acc);color:#000}
+.shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.ed{min-height:90px;background:#0F172A;border:1px solid rgba(148,163,184,.25);border-radius:12px;padding:.6rem;color:var(--t1)}
+.ed mark{background:rgba(245,158,11,.35);color:var(--amb);box-shadow:0 0 8px rgba(245,158,11,.5)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<!-- Gate -->
+<div id="gate" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5" style="background:radial-gradient(circle at 50% 20%,#0f2a3a,#090D16 60%)">
+  <img src="icons/icon-192.png" class="w-24 h-24 rounded-3xl" alt="StealthKeep">
+  <p id="gmsg" class="text-sm text-slate-300">ใส่ PIN 6 หลัก</p>
+  <div id="dots" class="flex gap-3"></div>
+  <div id="pad" class="grid grid-cols-3 gap-4 w-64"></div>
+</div>
+
+<!-- App -->
+<div id="app" class="hidden h-full flex flex-col">
+  <header class="flex items-center gap-2 px-3 py-2 glass rounded-none border-x-0 border-t-0">
+    <img src="icons/favicon-48.png" class="w-8 h-8 rounded-lg" alt="">
+    <b class="text-white hidden sm:block">StealthKeep</b>
+    <input id="q" placeholder="ค้นหาด่วน…" autocomplete="off">
+    <button id="lock" class="btn2 shrink-0" aria-label="ล็อก">🔒</button>
+  </header>
+  <main id="view" class="flex-1 overflow-y-auto p-3 space-y-3"></main>
+  <nav class="nav flex glass rounded-none border-x-0 border-b-0" id="nav"></nav>
+</div>
+<div id="lb" class="hidden fixed inset-0 z-40 bg-black/95 flex flex-col"></div>
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
+
+<script>
+const VER='1.0.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function key(pin,salt){const m=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},m,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function seal(o){const iv=crypto.getRandomValues(new Uint8Array(12));return JSON.stringify({v:1,s:meta.salt,iv:b64(iv),d:b64(await crypto.subtle.encrypt({name:'AES-GCM',iv},K,enc.encode(JSON.stringify(o))))})}
+async function unseal(t,k){const o=JSON.parse(t);return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(o.iv)},k,ub(o.d))))}
+let meta=JSON.parse(localStorage.sk_meta||'null'),S,K,duress=false,tab='home',buf='',first=null,LB=null,idle,editing=null,deferred;
+const DEF=()=>({check:[],notes:[],alb:[],docs:[],log:[],set:{auto:60,api:'',token:''}});
+const decoy=()=>({...DEF(),check:[{id:1,t:'ซื้อของเข้าบ้าน',lv:'N',d:0}],notes:[{id:1,t:'รายการซื้อ',h:'นม ไข่ ขนมปัง',pin:0}],docs:[{id:1,t:'ใบเสร็จค่าน้ำ',u:'https://example.com'}]});
+const save=async()=>{if(!duress&&K)localStorage.sk_data=await seal(S)};
+const log=m=>{S.log.unshift({t:Date.now(),m});S.log=S.log.slice(0,15)};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(t._);t._=setTimeout(()=>t.classList.add('hidden'),2200)};
+const uid=()=>Date.now()+Math.floor(Math.random()*1e3);
+
+/* ---------- Gate ---------- */
+$('#pad').innerHTML=[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<i></i>':`<button class="key" data-k="${k}">${k}</button>`).join('');
+function gate(msg,err){$('#gmsg').textContent=msg;$('#dots').innerHTML='<i class="dot"></i>'.repeat(6);if(err){$('#dots').classList.add('shake');setTimeout(()=>$('#dots').classList.remove('shake'),400)}}
+const dots=()=>[...$('#dots').children].forEach((d,i)=>d.classList.toggle('f',i<buf.length));
+function press(k){if(k==='⌫')buf=buf.slice(0,-1);else if(buf.length<6)buf+=k;dots();if(buf.length===6){const p=buf;buf='';setTimeout(()=>{dots();submit(p)},120)}}
+$('#pad').onclick=e=>{const k=e.target.dataset.k;if(k!==undefined)press(k)};
+addEventListener('keydown',e=>{if($('#gate').classList.contains('hidden')){if(LB)lbKey(e);return}if(/^\d$/.test(e.key))press(e.key);if(e.key==='Backspace')press('⌫')});
+async function submit(p){
+  if(!meta){
+    if(!first){first=p;return gate('ยืนยัน PIN อีกครั้ง')}
+    if(first!==p){first=null;return gate('PIN ไม่ตรงกัน ตั้งใหม่อีกครั้ง',1)}
+    meta={salt:b64(crypto.getRandomValues(new Uint8Array(16)))};K=await key(p,ub(meta.salt));S=DEF();log('สร้างห้องนิรภัย');
+    localStorage.sk_meta=JSON.stringify(meta);await save();return enter()}
+  if(meta.dh&&await sha(p+meta.salt)===meta.dh){duress=true;S=decoy();return enter()}
+  try{K=await key(p,ub(meta.salt));S=await unseal(localStorage.sk_data,K);duress=false;enter()}catch(e){gate('PIN ไม่ถูกต้อง',1)}
+}
+function enter(){first=null;$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');const t=new URLSearchParams(location.search).get('tab');if(t&&TABS.some(x=>x[0]===t))tab=t;R();bump()}
+function lock(){S=K=null;buf='';editing=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
+function bump(){clearTimeout(idle);const a=S&&S.set.auto;if(a>0)idle=setTimeout(lock,a*1000)}
+['click','touchstart','keydown'].forEach(ev=>addEventListener(ev,()=>S&&bump(),{passive:true}));
+$('#lock').onclick=lock;
+gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำหรับห้องนิรภัย');
+
+/* ---------- Views ---------- */
+const TABS=[['home','🏠','หน้าแรก'],['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร'],['set','⚙️','ตั้งค่า']];
+const sec=(t,b)=>`<section class="glass p-3 space-y-2"><h2 class="text-white font-bold">${t}</h2>${b}</section>`;
+const empty=t=>`<p class="text-sm text-slate-500 py-4 text-center">${t}</p>`;
+const docType=u=>/tiktok/i.test(u)?['TIKTOK','#8B5CF6']:/facebook|fb\.watch/i.test(u)?['FACEBOOK','#06B6D4']:/spreadsheets/.test(u)?['SHEET','#10B981']:/\.pdf|\/file\/d/.test(u)?['PDF','#F59E0B']:/document/.test(u)?['DOC','#06B6D4']:['LINK','#94A3B8'];
+const tg=(t,c)=>`<span class="tag" style="color:${c};border-color:${c}">${t}</span>`;
+const V={
+home:()=>`<div class="glass p-4 flex items-center gap-3" style="box-shadow:0 0 24px rgba(16,185,129,.18)"><span class="text-3xl">🛡️</span><div><b class="text-white">${duress?'ระบบพร้อมใช้งาน':'AES-256 SECURE'}</b><p class="text-xs">ข้อมูลเข้ารหัสในเครื่อง • v${VER}</p></div></div>
+<div class="grid grid-cols-2 gap-3">${[['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร']].map(([k,i,n])=>`<a href="#" data-go="${k}" class="glass p-3 block"><div class="text-2xl text-white font-bold">${S[k].length}</div><div class="text-sm">${i} ${n}</div></a>`).join('')}</div>
+${sec('กิจกรรมล่าสุด',S.log.length?S.log.map(l=>`<p class="text-sm"><span class="text-slate-500">${new Date(l.t).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</span> ${esc(l.m)}</p>`).join(''):empty('ยังไม่มีกิจกรรม'))}`,
+check:()=>sec('เช็คลิสต์ความปลอดภัย',`<div class="flex gap-2"><input id="ct" placeholder="เพิ่มภารกิจ"><select id="cl" class="!w-28"><option value="N">NORMAL</option><option value="C">CRITICAL</option></select><button class="btn" data-a="cadd">+</button></div>`+
+ (S.check.map(c=>`<div class="flex items-center gap-2 py-1"><input type="checkbox" class="!w-5 !h-5" ${c.d?'checked':''} data-a="ctog" data-i="${c.id}"><span class="flex-1 ${c.d?'done':'text-white'}">${esc(c.t)}</span>${c.lv==='C'?tg('CRITICAL','#EF4444'):tg('NORMAL','#10B981')}<button data-a="cedit" data-i="${c.id}">✏️</button><button data-a="cdel" data-i="${c.id}">🗑️</button></div>`).join('')||empty('ยังไม่มีภารกิจ — เพิ่มข้อแรกด้านบน'))),
+notes:()=>{const n=editing!==null?S.notes.find(x=>x.id===editing)||{}:null;
+ if(n)return sec(n.id?'แก้ไขโน้ต':'โน้ตใหม่',`<input id="nt" placeholder="หัวข้อ" value="${esc(n.t||'')}"><div class="flex gap-2 text-white">${[['bold','B'],['italic','I'],['underline','U'],['hl','🖍']].map(([c,l])=>`<button class="btn2 !px-3" data-a="fmt" data-c="${c}">${l}</button>`).join('')}</div><div id="nh" class="ed" contenteditable>${n.h||''}</div><div class="flex gap-2"><button class="btn" data-a="nsave">บันทึก</button><button class="btn2" data-a="ncancel">ยกเลิก</button></div>`);
+ return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+([...S.notes].sort((a,b)=>b.pin-a.pin).map(n=>`<div class="glass p-3"><div class="flex items-center gap-2"><b class="text-white flex-1">${n.pin?'📌 ':''}${esc(n.t)}</b><button data-a="npin" data-i="${n.id}">📌</button><button data-a="ncopy" data-i="${n.id}">📋</button><button data-a="nedit" data-i="${n.id}">✏️</button><button data-a="ndel" data-i="${n.id}">🗑️</button></div><div class="blur mt-2 text-slate-200" data-a="reveal">${n.h}</div></div>`).join('')||empty('ยังไม่มีโน้ต'))},
+alb:()=>sec('อัลบั้ม',`<input id="an" placeholder="ชื่ออัลบั้ม"><input id="au" placeholder="ลิงก์โฟลเดอร์ Google Drive"><button class="btn w-full" data-a="aadd">เพิ่มอัลบั้ม</button>`)+(S.alb.map(a=>`<div class="glass p-3 flex items-center gap-2"><span class="text-2xl">🖼️</span><b class="text-white flex-1">${esc(a.t)}</b><button class="btn" data-a="aopen" data-i="${a.id}">เปิด</button><button data-a="adel" data-i="${a.id}">🗑️</button></div>`).join('')||empty('ยังไม่มีอัลบั้ม')),
+docs:()=>sec('เอกสาร & ลิงก์',`<input id="dt" placeholder="ชื่อ"><input id="du" placeholder="ลิงก์ Drive / TikTok / Facebook"><button class="btn w-full" data-a="dadd">บันทึกลิงก์</button>`)+(S.docs.map(d=>{const[t,c]=docType(d.u);return`<div class="glass p-3 flex items-center gap-2">${tg(t,c)}<b class="text-white flex-1 truncate">${esc(d.t)}</b><button data-a="dcopy" data-i="${d.id}">📋</button><a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" class="btn !py-1">เปิดดู</a><button data-a="ddel" data-i="${d.id}">🗑️</button></div>`}).join('')||empty('ยังไม่มีลิงก์')),
+set:()=>sec('ความปลอดภัย',`<button class="btn2 w-full" data-a="pin">เปลี่ยน Master PIN</button><button class="btn2 w-full" data-a="dpin">ตั้ง Duress PIN (หน้าจอหลอก)</button><label class="text-sm">ล็อกอัตโนมัติ</label><select id="auto">${[[0,'ปิด'],[30,'30 วินาที'],[60,'1 นาที'],[300,'5 นาที']].map(([v,l])=>`<option value="${v}" ${S.set.auto==v?'selected':''}>${l}</option>`).join('')}</select><button class="btn2 w-full" data-a="wipe">ล้างเซสชันฉุกเฉิน</button>`)+
+ sec('Google Sheets Backend',`<p class="text-xs">${S.set.api?'🟢 ตั้งค่าแล้ว':'⚪ ยังไม่เชื่อมต่อ'}</p><input id="api" placeholder="Apps Script Web App URL" value="${esc(S.set.api)}"><input id="tok" placeholder="Token" value="${esc(S.set.token)}"><div class="flex gap-2"><button class="btn2 flex-1" data-a="apisave">บันทึก</button><button class="btn2 flex-1" data-a="push">ส่งขึ้น</button><button class="btn2 flex-1" data-a="pull">ดึงลง</button></div>`)+
+ sec('สำรองข้อมูล',`<div class="flex gap-2"><button class="btn2 flex-1" data-a="exp">ส่งออก JSON เข้ารหัส</button><button class="btn2 flex-1" data-a="imp">นำเข้า</button></div><input type="file" id="impf" accept=".json" class="hidden">`)+
+ sec('ติดตั้งแอป',`<button class="btn w-full" data-a="install">เพิ่มไอคอนลงหน้าจอหลัก</button><p class="text-xs">iPhone: Safari → ปุ่มแชร์ → “เพิ่มไปยังหน้าจอโฮม”</p>`)
+};
+function R(){$('#nav').innerHTML=TABS.map(([k,i,n])=>`<a href="#" data-go="${k}" class="${k===tab?'on':''}"><div class="text-lg">${i}</div>${n}</a>`).join('');
+  const q=$('#q').value.trim().toLowerCase();
+  if(q){const hits=[...S.check.map(x=>['check','✅',x.t]),...S.notes.map(x=>['notes','📝',x.t]),...S.alb.map(x=>['alb','🖼️',x.t]),...S.docs.map(x=>['docs','📄',x.t])].filter(h=>h[2].toLowerCase().includes(q));
+    $('#view').innerHTML=sec('ผลการค้นหา',hits.map(h=>`<a href="#" data-go="${h[0]}" class="block py-1 text-white">${h[1]} ${esc(h[2])}</a>`).join('')||empty('ไม่พบรายการ'));return}
+  $('#view').innerHTML=V[tab]()}
+$('#q').oninput=R;
+
+/* ---------- Actions ---------- */
+const by=(a,i)=>S[a].find(x=>x.id==i),rm=(a,i)=>S[a]=S[a].filter(x=>x.id!=i);
+const val=id=>$(id).value.trim();
+const A={
+ cadd:()=>{const t=val('#ct');if(!t)return;S.check.unshift({id:uid(),t,lv:$('#cl').value,d:0});log('เพิ่มภารกิจ: '+t)},
+ ctog:i=>{const c=by('check',i);c.d=c.d?0:1;if(c.d)log('ทำเสร็จ: '+c.t)},
+ cedit:i=>{const c=by('check',i),t=prompt('แก้ไข',c.t);if(t)c.t=t},
+ cdel:i=>{if(confirm('ลบรายการนี้?'))rm('check',i)},
+ nnew:()=>editing=0, ncancel:()=>editing=null,
+ nedit:i=>editing=+i,
+ fmt:(i,e)=>{const c=e.dataset.c;c==='hl'?document.execCommand('hiliteColor',false,'#F59E0B55'):document.execCommand(c);return 1},
+ nsave:()=>{const t=val('#nt')||'ไม่มีชื่อ',h=$('#nh').innerHTML;if(editing){Object.assign(by('notes',editing),{t,h})}else S.notes.unshift({id:uid(),t,h,pin:0});log('บันทึกโน้ต: '+t);editing=null},
+ npin:i=>{const n=by('notes',i);n.pin=n.pin?0:1},
+ ncopy:i=>{const d=document.createElement('div');d.innerHTML=by('notes',i).h;navigator.clipboard.writeText(d.innerText).then(()=>toast('คัดลอกแล้ว'));return 1},
+ ndel:i=>{if(confirm('ลบโน้ตนี้?'))rm('notes',i)},
+ reveal:(i,e)=>{e.classList.toggle('on');return 1},
+ aadd:()=>{const t=val('#an'),u=val('#au'),m=u.match(/folders\/([\w-]+)|[?&]id=([\w-]+)/);if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;S.alb.push({id:uid(),t,f:m[1]||m[2]});log('เพิ่มอัลบั้ม: '+t)},
+ adel:i=>{if(confirm('ลบอัลบั้มนี้?'))rm('alb',i)},
+ aopen:async i=>{const a=by('alb',i),{api,token}=S.set;if(!api){toast('ตั้งค่า Apps Script URL ในหน้าตั้งค่าก่อน');return 1}
+  toast('กำลังโหลดรูป…');try{const r=await(await fetch(`${api}?action=folder&id=${a.f}&token=${encodeURIComponent(token)}`)).json();if(!r.ok)throw 0;
+  LB={list:r.files,i:0,z:1,mask:false};lbDraw()}catch(e){toast('โหลดอัลบั้มไม่สำเร็จ ตรวจ URL / Token')}return 1},
+ dadd:()=>{const t=val('#dt'),u=val('#du');if(!t||!/^https?:\/\//.test(u))return toast('ใส่ชื่อและลิงก์ที่ขึ้นต้นด้วย https://')||1;S.docs.unshift({id:uid(),t,u});log('เพิ่มลิงก์: '+t)},
+ dcopy:i=>{navigator.clipboard.writeText(by('docs',i).u).then(()=>toast('คัดลอก URL แล้ว'));return 1},
+ ddel:i=>{if(confirm('ลบลิงก์นี้?'))rm('docs',i)},
+ pin:async()=>{const p=prompt('PIN ใหม่ 6 หลัก');if(!/^\d{6}$/.test(p||''))return toast('PIN ต้องเป็นตัวเลข 6 หลัก')||1;
+  meta={salt:b64(crypto.getRandomValues(new Uint8Array(16)))};K=await key(p,ub(meta.salt));localStorage.sk_meta=JSON.stringify(meta);toast('เปลี่ยน PIN แล้ว (Duress PIN ถูกรีเซ็ต)')},
+ dpin:async()=>{if(duress)return 1;const p=prompt('Duress PIN 6 หลัก (ต้องไม่ซ้ำ PIN จริง)');if(!/^\d{6}$/.test(p||''))return toast('ต้องเป็นตัวเลข 6 หลัก')||1;
+  try{await key(p,ub(meta.salt)).then(k=>unseal(localStorage.sk_data,k));return toast('ซ้ำกับ PIN จริง')||1}catch(e){}
+  meta.dh=await sha(p+meta.salt);localStorage.sk_meta=JSON.stringify(meta);toast('ตั้ง Duress PIN แล้ว')},
+ apisave:()=>{S.set.api=val('#api');S.set.token=val('#tok');toast('บันทึกแล้ว')},
+ push:async()=>{A.apisave();try{await save();const r=await(await fetch(S.set.api,{method:'POST',body:JSON.stringify({token:S.set.token,blob:localStorage.sk_data})})).json();toast(r.ok?'ส่งขึ้น Google Sheets แล้ว':'ส่งไม่สำเร็จ')}catch(e){toast('เชื่อมต่อไม่ได้')}return 1},
+ pull:async()=>{A.apisave();try{const r=await(await fetch(`${S.set.api}?token=${encodeURIComponent(S.set.token)}`)).json();if(!r.blob)return toast('ยังไม่มีข้อมูลบนชีต')||1;
+  const n=await unseal(r.blob,K);n.set={...n.set,api:S.set.api,token:S.set.token};S=n;toast('ดึงข้อมูลแล้ว')}catch(e){toast('ดึงไม่สำเร็จ (PIN/เกลือไม่ตรงกับเครื่องที่ส่ง)')}},
+ exp:async()=>{await save();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({meta,data:localStorage.sk_data})],{type:'application/json'}));a.download=`stealthkeep-backup-v${VER}.json`;a.click();return 1},
+ imp:()=>{$('#impf').click();return 1},
+ wipe:()=>{if(confirm('ล้างเซสชันและล็อกทันที?')){lock()}return 1},
+ install:async()=>{if(deferred){deferred.prompt();deferred=null}else toast('ใช้เมนูเบราว์เซอร์ → “เพิ่มลงหน้าจอหลัก”');return 1}
+};
+$('#view').addEventListener('change',async e=>{if(e.target.id==='auto'){S.set.auto=+e.target.value;bump();await save()}
+  if(e.target.id==='impf'){const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(j.meta.salt!==meta.salt)throw 0;S=await unseal(j.data,K);await save();R();toast('นำเข้าแล้ว')}catch(x){toast('นำเข้าไม่ได้ — ต้องเป็นไฟล์จากห้องนิรภัย/PIN เดียวกัน')}}
+  if(e.target.dataset.a==='ctog'){await run(e.target)}});
+async function run(el){const a=el.dataset.a;if(!A[a])return;if(duress&&['pin','dpin','push','pull','exp','imp'].includes(a))return;const skip=await A[a](el.dataset.i,el);await save();if(skip!==1)R()}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;$('#q').value='';R();return}
+  const el=e.target.closest('[data-a]');if(el&&el.type!=='checkbox'&&S)run(el)});
+
+/* ---------- Lightbox ---------- */
+function lbDraw(){const L=LB,f=L.list[L.i];$('#lb').classList.remove('hidden');
+  $('#lb').innerHTML=`<div class="flex items-center gap-2 p-3 text-white"><span class="flex-1 text-sm truncate">${L.i+1}/${L.list.length} ${esc(f.name)}</span><button class="btn2" id="zo">−</button><span>${Math.round(L.z*100)}%</span><button class="btn2" id="zi">+</button><button class="btn2" id="mk">${L.mask?'👁️':'🙈'}</button><button class="btn2" id="cl2">✕</button></div>
+  <div class="flex-1 overflow-auto flex items-center justify-center relative">${L.list.length?`<img src="https://drive.google.com/thumbnail?id=${f.id}&sz=w1600" style="transform:scale(${L.z});transition:transform .2s;max-width:100%;max-height:100%;${L.mask?'filter:blur(30px)':''}" alt="">`:''}${L.mask?'<b class="absolute text-emerald-400 tracking-widest border border-emerald-400 px-3 py-1">DATA SECURED // REDACTED</b>':''}</div>
+  <div class="flex justify-between p-3"><button class="btn2" id="pv">◀</button><button class="btn2" id="nx">▶</button></div>`;
+  const go=d=>{L.i=(L.i+d+L.list.length)%L.list.length;L.z=1;lbDraw()},zz=d=>{L.z=Math.min(3,Math.max(.5,L.z+d));lbDraw()};
+  $('#pv').onclick=()=>go(-1);$('#nx').onclick=()=>go(1);$('#zi').onclick=()=>zz(.25);$('#zo').onclick=()=>zz(-.25);
+  $('#mk').onclick=()=>{L.mask=!L.mask;lbDraw()};$('#cl2').onclick=()=>{LB=null;$('#lb').classList.add('hidden')};L.go=go;L.zz=zz}
+function lbKey(e){const L=LB;if(e.key==='ArrowRight')L.go(1);if(e.key==='ArrowLeft')L.go(-1);if(e.key==='+')L.zz(.25);if(e.key==='-')L.zz(-.25);if(e.key==='Escape')$('#cl2').click()}
+
+/* ---------- PWA ---------- */
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e});
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+</script>
+</body>
+</html>
