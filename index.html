@@ -56,6 +56,31 @@ input[type=checkbox]{width:1.5rem;height:1.5rem;min-height:0;padding:0;flex:none
 .ed:empty::before{content:attr(data-ph);color:#64748b}
 .spin{animation:rot .8s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
 .bt{filter:blur(9px);transition:filter .2s}.bt:active{filter:blur(0)}
+body{line-height:1.5}
+input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
+#q{padding:.65rem 1.15rem;min-height:2.9rem;border-radius:999px}
+.hb{width:2.9rem;height:2.9rem;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(148,163,184,.3);color:var(--t1);flex:none}
+.hb.spin{animation:none}.hb.spin svg{animation:rot .8s linear infinite}
+.meta{font-size:.75rem;color:#94A3B8;display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;line-height:1.3}
+.acts{display:inline-flex;flex:none;border:1px solid rgba(148,163,184,.2);border-radius:12px;background:rgba(9,13,22,.55);overflow:hidden}
+.acts button,.acts a{width:2.3rem;height:2.3rem;display:grid;place-items:center;color:#94A3B8}
+.acts>*+*{border-left:1px solid rgba(148,163,184,.14)}
+.acts .dng{color:#F87171}.acts .on{color:var(--amb)}.acts .off{opacity:.55}
+.xb{width:2.4rem;height:2.4rem;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(148,163,184,.3);color:var(--t1)}
+.dngb{color:#F87171;border-color:rgba(248,113,113,.4)}
+.sw{display:grid;grid-template-columns:1fr 1fr;position:relative;border-radius:999px;background:#0F172A;border:1px solid rgba(148,163,184,.25);padding:3px;min-height:3rem}
+.sw::before{content:"";position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--acc);transition:transform .2s,background .2s}
+.sw.on::before{transform:translateX(100%);background:#EF4444}
+.sw span{position:relative;z-index:1;text-align:center;font-weight:700;font-size:.78rem;line-height:2.4rem;color:#94A3B8}
+.sw span:first-child{color:#04120d}.sw.on span:first-child{color:#94A3B8}.sw.on span:last-child{color:#fff}
+.cover{width:3.6rem;height:3.6rem;border-radius:14px;overflow:hidden;flex:none;border:1.5px solid;background:#0F172A;display:grid;place-items:center;color:#475569;padding:2px}
+.cover img{width:100%;height:100%;object-fit:cover;border-radius:11px}
+.lbb{min-width:2.4rem;height:2.4rem;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(148,163,184,.25);color:#E2E8F0;background:rgba(30,41,59,.6)}
+.nbody{line-height:1.55rem;background-image:repeating-linear-gradient(transparent,transparent calc(1.55rem - 1px),rgba(148,163,184,.14) calc(1.55rem - 1px),rgba(148,163,184,.14) 1.55rem)}
+.clamp{max-height:6.2rem}
+.blur{filter:blur(8px)}
+.lockhint{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:#E2E8F0;font-size:.85rem;letter-spacing:.05em}
+.ed{line-height:1.55rem}
 </style>
 </head>
 <body>
@@ -69,12 +94,12 @@ input[type=checkbox]{width:1.5rem;height:1.5rem;min-height:0;padding:0;flex:none
 
 <!-- App -->
 <div id="app" class="hidden h-full flex flex-col">
-  <header class="flex items-center gap-3 px-4 py-3 glass rounded-none border-x-0 border-t-0">
+  <header class="flex items-center gap-2 px-4 py-3 glass rounded-none border-x-0 border-t-0">
     <img src="icons/favicon-48.png" class="w-8 h-8 rounded-lg" alt="">
     <b class="text-white hidden sm:block">StealthKeep</b>
     <input id="q" placeholder="ค้นหาด่วน…" autocomplete="off">
-    <button id="rf" class="btn2 shrink-0 !px-3" aria-label="รีเฟรช">🔄</button>
-    <button id="lock" class="btn2 shrink-0 !px-3" aria-label="ล็อก">🔒</button>
+    <button id="rf" class="hb" aria-label="รีเฟรช"></button>
+    <button id="lock" class="hb" aria-label="ล็อก"></button>
   </header>
   <main id="view" class="flex-1 overflow-y-auto p-4 space-y-4"></main>
   <nav class="nav flex glass rounded-none border-x-0 border-b-0" id="nav"></nav>
@@ -83,7 +108,7 @@ input[type=checkbox]{width:1.5rem;height:1.5rem;min-height:0;padding:0;flex:none
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='1.2.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='1.3.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -115,7 +140,7 @@ async function submit(p){
   try{K=await key(p,ub(meta.salt));S=await unseal(localStorage.sk_data,K);duress=false;enter()}catch(e){gate('PIN ไม่ถูกต้อง',1)}
 }
 function enter(){first=null;S.arch||=[];S.cats||={};S.acats||={};S.set.arch??=30;if(!duress&&S.set.arch>0){const lim=Date.now()-S.set.arch*864e5,old=S.check.filter(c=>c.d&&c.dn&&c.dn<lim);if(old.length){S.arch.unshift(...old);S.check=S.check.filter(c=>!old.includes(c));save()}}$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');const t=new URLSearchParams(location.search).get('tab');if(t&&TABS.some(x=>x[0]===t))tab=t;R();bump()}
-function lock(){S=K=null;RV.clear();EX.clear();ckF='todo';AV=null;ckEd=null;buf='';editing=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
+function lock(){S=K=null;RV.clear();EX.clear();ckF='todo';aEd=null;ckEd=null;buf='';editing=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
 function bump(){clearTimeout(idle);const a=S&&S.set.auto;if(a>0)idle=setTimeout(lock,a*1000)}
 ['click','touchstart','keydown'].forEach(ev=>addEventListener(ev,()=>S&&bump(),{passive:true}));
 $('#lock').onclick=lock;
@@ -125,58 +150,66 @@ gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำ�
 /* ---------- Views ---------- */
 const TABS=[['home','🏠','หน้าแรก'],['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร'],['set','⚙️','ตั้งค่า']];
 const PAL=['#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899','#3B82F6'],catC=c=>PAL[S.cats[c]??0];
-let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',AV=null;const RV=new Set(),EX=new Set();
+let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null;const RV=new Set(),EX=new Set();
+const svg=(p,f,w=18)=>`<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="${f||'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const PIN='<path d="M12 17v5"/><path d="M9 3h6l-1 7 3 3v2H7v-2l3-3Z"/>',STAR='<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9Z"/>',EYE='<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
+const IC={copy:svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),edit:svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),trash:svg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),pin:svg(PIN),pinF:svg(PIN,'currentColor'),
+ arc:svg('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9"/><path d="M10 13h4"/>'),rest:svg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>'),x:svg('<path d="M18 6 6 18M6 6l12 12"/>',0,20),chev:svg('<path d="m9 6 6 6-6 6"/>',0,22),
+ star:svg(STAR),starF:svg(STAR,'currentColor'),eye:svg(EYE),eyeoff:svg(EYE+'<path d="M3 3l18 18"/>'),open:svg('<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>'),
+ img:svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',0,24),refresh:svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',0,20),lock:svg('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',0,20)};
+const ab=(a,i,ic,c='')=>`<button class="${c}" data-a="${a}" data-i="${i}">${ic}</button>`,pill=(...b)=>`<div class="acts">${b.join('')}</div>`;
 const sec=(t,b)=>`<section class="glass p-5 space-y-4"><h2 class="text-white font-bold text-lg">${t}</h2>${b}</section>`;
+const secx=(t,a,b)=>`<section class="glass p-5 space-y-4"><div class="flex items-center justify-between"><h2 class="text-white font-bold text-lg">${t}</h2><button class="xb" data-a="${a}" aria-label="ปิด">${IC.x}</button></div>${b}</section>`;
 const fld=(l,h,hint)=>`<div class="space-y-2"><div class="text-sm text-slate-300">${l}</div>${h}${hint?`<p class="text-xs text-slate-500">${hint}</p>`:''}</div>`;
 const empty=t=>`<p class="text-sm text-slate-500 py-6 text-center">${t}</p>`;
 const tg=(t,c)=>`<span class="tag" style="color:${c};border-color:${c}">${t}</span>`;
-const ib=(a,i,e,x='')=>`<button class="ib ${x}" data-a="${a}" data-i="${i}">${e}</button>`;
 const chip=(on,a,v,t)=>`<button class="chip ${on?'on':''}" data-a="${a}" data-c="${esc(v)}">${esc(t)}</button>`;
+const SW=on=>`<button type="button" id="sw" class="sw flex-1 ${on?'on':''}" data-a="clv"><span>NORMAL</span><span>CRITICAL</span></button>`;
 const fdt=t=>new Date(t).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
+const sd=t=>new Date(t).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const du=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?`${d}ว ${h}ชม`:h?`${h}ชม ${m%60}น`:m?`${m}น`:'<1น'};
 const dur=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?`${d} วัน ${h} ชม.`:h?`${h} ชม. ${m%60} นาที`:m?`${m} นาที`:'ไม่ถึง 1 นาที'};
 const txt=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent};
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}};
 const docType=u=>/tiktok/i.test(u)?['TIKTOK','#8B5CF6']:/facebook|fb\.watch/i.test(u)?['FACEBOOK','#06B6D4']:/spreadsheets/.test(u)?['SHEET','#10B981']:/\.pdf|\/file\/d/.test(u)?['PDF','#F59E0B']:/document/.test(u)?['DOC','#06B6D4']:['LINK','#94A3B8'];
-const ckItem=(c,arch)=>{const at=c.at||c.id,dn=c.dn||at;return `<div class="rounded-xl bg-slate-900/50 p-4 space-y-3"><div class="flex gap-3 items-start"><input type="checkbox" class="mt-1" ${c.d?'checked':''} ${arch?'disabled':''} data-a="ctog" data-i="${c.id}"><span class="flex-1 break-words whitespace-pre-wrap leading-relaxed ${c.d?'done':'text-white'}">${esc(c.t)}</span></div>
-<div class="flex items-center gap-2 pl-9">${c.lv==='C'?tg('CRITICAL','#EF4444'):tg('NORMAL','#10B981')}<span class="flex-1"></span>${arch?ib('crest',c.id,'↩️'):c.d?ib('carc',c.id,'📦'):ib('cedit',c.id,'✏️')}${ib('cdel',c.id,'🗑️')}</div>
-<p class="pl-9 text-xs text-slate-400 leading-relaxed">เพิ่มเมื่อ ${fdt(at)}${c.up?` • แก้ไข ${fdt(c.up)}`:''}<br>${c.d?`เสร็จเมื่อ ${fdt(dn)} • ใช้เวลา ${dur(dn-at)}`:`ค้างมา ${dur(Date.now()-at)}`}</p></div>`};
+const card=(c,inner,x='')=>`<div class="glass p-4 ${x}" style="border-left:4px solid ${c};background:linear-gradient(135deg,${c}1c,rgba(30,41,59,.55) 55%)">${inner}</div>`;
+const ckItem=(c,arch)=>{const at=c.at||c.id,dn=c.dn||at,col=c.lv==='C'?'#EF4444':'#10B981';
+ return card(col,`<div class="flex items-center gap-3"><input type="checkbox" ${c.d?'checked':''} ${arch?'disabled':''} data-a="ctog" data-i="${c.id}"><div class="flex-1 min-w-0"><div class="break-words whitespace-pre-wrap leading-snug ${c.d?'done':'text-white'}">${esc(c.t)}</div><div class="meta mt-1.5">${c.lv==='C'?tg('CRITICAL',col):tg('NORMAL',col)}<span>${c.d?`✓ ${sd(dn)} · ใช้ ${du(dn-at)}`:`${sd(at)} · ค้าง ${du(Date.now()-at)}`}</span></div></div>${pill(...(arch?[ab('crest',c.id,IC.rest)]:c.d?[ab('carc',c.id,IC.arc)]:[ab('cedit',c.id,IC.edit)]),ab('cdel',c.id,IC.trash,'dng'))}</div>`)};
 const TB=`<div class="tb space-y-3"><div class="flex flex-wrap gap-2">${[['sz2','เล็ก'],['sz3','ปกติ'],['sz5','ใหญ่'],['sz6','ใหญ่พิเศษ']].map(([c,l])=>`<button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="${c}">${l}</button>`).join('')}</div>
 <div class="flex flex-wrap gap-2"><button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="bold"><b>หนา</b></button><button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="light">บาง</button><button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="italic"><i>เอียง</i></button><button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="underline"><u>ขีดเส้นใต้</u></button><button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="clear">⟲ ล้าง</button></div>
 <div class="flex flex-wrap gap-3 items-center">${['rgba(250,204,21,.45)','rgba(74,222,128,.4)','rgba(56,189,248,.4)','rgba(244,114,182,.4)'].map(c=>`<button type="button" tabindex="-1" class="swatch" style="background:${c}" data-a="fmt" data-c="hl:${c}" aria-label="ไฮไลต์"></button>`).join('')}<button type="button" tabindex="-1" class="chip" data-a="fmt" data-c="nohl">ไม่ไฮไลต์</button></div></div>`;
 const noteCard=n=>{const cat=n.cat||'ทั่วไป',c=catC(cat),rv=RV.has(n.id),ex=EX.has(n.id),long=txt(n.h).length>180||(n.h.match(/<br|<div|<p/g)||[]).length>4;
-return `<div class="glass p-4 space-y-3" style="border-left:5px solid ${c};background:linear-gradient(135deg,${c}22,rgba(30,41,59,.55) 60%)"><div class="flex items-start gap-1"><div class="flex-1 min-w-0"><b class="text-white text-lg break-words">${esc(n.t)}</b><div class="flex flex-wrap items-center gap-2 mt-1">${tg(esc(cat),c)}<span class="text-xs text-slate-400">${fdt(n.up||n.at||n.id)}</span></div></div>${ib('npin',n.id,'📌',n.pin?'':'pinoff')}${ib('eye',n.id,rv?'👁️':'🙈')}</div>
-<div class="nbody ${rv?'':'blur'} ${long&&!ex?'clamp':''}" data-a="show" data-i="${n.id}">${n.h}</div>
-<div class="flex items-center gap-1">${long?`<button class="chip" data-a="nexp" data-i="${n.id}">${ex?'ย่อ ▴':'อ่านต่อ ▾'}</button>`:''}<span class="flex-1"></span>${ib('ncopy',n.id,'📋')}${ib('nedit',n.id,'✏️')}${ib('ndel',n.id,'🗑️')}</div></div>`};
+ return card(c,`<div class="flex items-start gap-3"><div class="flex-1 min-w-0"><b class="text-white text-lg break-words block leading-snug">${esc(n.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}<span>${sd(n.up||n.at||n.id)}</span></div></div>${pill(ab('npin',n.id,n.pin?IC.pinF:IC.pin,n.pin?'on':'off'),ab('ncopy',n.id,IC.copy),ab('nedit',n.id,IC.edit),ab('ndel',n.id,IC.trash,'dng'))}</div>
+<div class="relative mt-3" data-a="show" data-i="${n.id}"><div class="nbody ${rv?'':'blur'} ${long&&!ex?'clamp':''}">${n.h}</div>${rv?'':'<span class="lockhint">แตะเพื่ออ่าน</span>'}</div>${long?`<div class="mt-2"><button class="chip" data-a="nexp" data-i="${n.id}">${ex?'ย่อ ▴':'อ่านต่อ ▾'}</button></div>`:''}`)};
 const V={
 home:()=>`<div class="glass p-5 flex items-center gap-4" style="box-shadow:0 0 24px rgba(16,185,129,.18)"><span class="text-4xl">🛡️</span><div><b class="text-white text-lg">${duress?'ระบบพร้อมใช้งาน':'AES-256 SECURE'}</b><p class="text-xs">ข้อมูลเข้ารหัสในเครื่อง • v${VER}</p></div></div>
 <div class="grid grid-cols-2 gap-4">${[['check','✅','ค้างในเช็คลิสต์',S.check.filter(c=>!c.d).length],['notes','📝','โน้ตลับ',S.notes.length],['alb','🖼️','อัลบั้ม',S.alb.length],['docs','📄','เอกสาร & ลิงก์',S.docs.length]].map(([k,i,n,v])=>`<a href="#" data-go="${k}" class="glass p-4 block"><div class="text-3xl text-white font-bold">${v}</div><div class="text-sm mt-1">${i} ${n}</div></a>`).join('')}</div>`,
-check:()=>{if(ckEd!==null){const c=by('check',ckEd);if(!c)ckEd=null;else return sec('แก้ไขภารกิจ',fld('ภารกิจ',`<textarea id="cet" rows="5">${esc(c.t)}</textarea>`)+fld('ระดับความสำคัญ',`<select id="cel"><option value="N" ${c.lv!=='C'?'selected':''}>NORMAL</option><option value="C" ${c.lv==='C'?'selected':''}>CRITICAL</option></select>`)+`<p class="text-xs text-slate-400 leading-relaxed">เพิ่มเมื่อ ${fdt(c.at||c.id)}<br>ค้างมา ${dur(Date.now()-(c.at||c.id))}</p><div class="flex gap-3"><button class="btn flex-1" data-a="csave">💾 บันทึก</button><button class="btn2" data-a="ccancel">ยกเลิก</button></div>`)}const T=S.check.filter(c=>!c.d),D=S.check.filter(c=>c.d),L=ckF==='todo'?T:ckF==='done'?D:S.arch,sh=L.slice(0,ckN);
- return sec('เช็คลิสต์ความปลอดภัย',fld('ภารกิจใหม่','<textarea id="ct" rows="2" placeholder="พิมพ์ภารกิจ…"></textarea>')+`<div class="flex gap-3"><select id="cl" class="flex-1"><option value="N">NORMAL</option><option value="C">CRITICAL</option></select><button class="btn" data-a="cadd">เพิ่ม</button></div>`)
+check:()=>{if(ckEd!==null){const c=by('check',ckEd);if(!c)ckEd=null;else return secx('แก้ไขภารกิจ','ccancel',fld('ภารกิจ',`<textarea id="cet" rows="4">${esc(c.t)}</textarea>`)+fld('ระดับความสำคัญ',SW(c.lv==='C'))+`<p class="text-xs text-slate-400">เพิ่มเมื่อ ${fdt(c.at||c.id)} • ค้างมา ${dur(Date.now()-(c.at||c.id))}${c.up?`<br>แก้ไขล่าสุด ${fdt(c.up)}`:''}</p><button class="btn w-full" data-a="csave">💾 บันทึก</button>`)}
+ const T=S.check.filter(c=>!c.d),D=S.check.filter(c=>c.d),L=ckF==='todo'?T:ckF==='done'?D:S.arch,sh=L.slice(0,ckN);
+ return sec('เช็คลิสต์ความปลอดภัย',`<input id="ct" placeholder="ภารกิจใหม่…" enterkeyhint="done" autocomplete="off"><div class="flex gap-3 items-center">${SW(false)}<button class="btn" data-a="cadd">เพิ่ม</button></div>`)
  +`<div class="chips">${chip(ckF==='todo','cf','todo','ค้างอยู่ '+T.length)}${chip(ckF==='done','cf','done','เสร็จแล้ว '+D.length)}${chip(ckF==='arch','cf','arch','คลัง '+S.arch.length)}</div>`
- +(ckF==='done'&&D.length?`<button class="btn2 w-full" data-a="carcall">📦 เก็บที่เสร็จทั้งหมดเข้าคลัง</button>`:'')+(ckF==='arch'&&S.arch.length?`<button class="btn2 w-full" data-a="cclear">🗑️ ล้างคลังถาวร</button>`:'')
+ +(ckF==='done'&&D.length?`<button class="btn2 w-full" data-a="carcall">เก็บที่เสร็จทั้งหมดเข้าคลัง</button>`:'')+(ckF==='arch'&&S.arch.length?`<button class="btn2 w-full dngb" data-a="cclear">ล้างคลังถาวร</button>`:'')
  +`<div class="space-y-3">${sh.map(c=>ckItem(c,ckF==='arch')).join('')||empty(ckF==='todo'?'ไม่มีภารกิจค้าง 🎉':ckF==='done'?'ยังไม่มีรายการที่เสร็จ':'คลังว่าง')}</div>`+(L.length>ckN?`<button class="btn2 w-full" data-a="more">แสดงเพิ่ม (เหลือ ${L.length-ckN})</button>`:'')},
 notes:()=>{if(editing!==null){const n=S.notes.find(x=>x.id===editing)||{},cats=Object.keys(S.cats);
- return sec(n.id?'แก้ไขโน้ต':'โน้ตใหม่',fld('หมวดหมู่ *',`<input id="nc" placeholder="เช่น รหัสผ่าน, ธนาคาร, งาน" value="${esc(n.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
+ return secx(n.id?'แก้ไขโน้ต':'โน้ตใหม่','ncancel',fld('หมวดหมู่ *',`<input id="nc" placeholder="เช่น รหัสผ่าน, ธนาคาร, งาน" value="${esc(n.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
  +(cats.length?`<div class="flex flex-wrap gap-2">${cats.map(c=>`<button type="button" class="chip" data-a="pickcat" data-c="${esc(c)}" style="border-color:${catC(c)}">${esc(c)}</button>`).join('')}</div>`:'')
  +fld('หัวข้อ',`<input id="nt" placeholder="ไม่บังคับ" value="${esc(n.t||'')}">`)
  +fld('เนื้อหา *','ลากคลุมข้อความ แล้วกดปุ่มด้านล่างเพื่อจัดขนาด / ความหนา / ไฮไลต์สี')
- +TB+`<div id="nh" class="ed" contenteditable data-ph="พิมพ์หรือวางเนื้อหาที่นี่ (คัดลอกมาจากที่อื่นก็ได้)">${n.h||''}</div><div class="flex gap-3"><button class="btn flex-1" data-a="nsave">💾 บันทึก</button><button class="btn2" data-a="ncancel">ยกเลิก</button></div>`)}
+ +TB+`<div id="nh" class="ed" contenteditable data-ph="พิมพ์หรือวางเนื้อหาที่นี่ (คัดลอกมาจากที่อื่นก็ได้)">${n.h||''}</div><button class="btn w-full" data-a="nsave">💾 บันทึก</button>`)}
  const cs=[...new Set(S.notes.map(n=>n.cat||'ทั่วไป'))],cnt=c=>S.notes.filter(n=>(n.cat||'ทั่วไป')===c).length,L=S.notes.filter(n=>nCat==='ทั้งหมด'||(n.cat||'ทั่วไป')===nCat);
- return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+(cs.length?`<div class="chips">${chip(nCat==='ทั้งหมด','ncat','ทั้งหมด','ทั้งหมด '+S.notes.length)}${cs.map(c=>`<button class="chip" data-a="ncat" data-c="${esc(c)}" style="border-color:${catC(c)};${nCat===c?`background:${catC(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${cnt(c)}</button>`).join('')}</div>`:'')+`<div class="space-y-4">${L.map(noteCard).join('')||empty('ยังไม่มีโน้ต')}</div>`},
+ return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+(cs.length?`<div class="chips">${chip(nCat==='ทั้งหมด','ncat','ทั้งหมด','ทั้งหมด '+S.notes.length)}${cs.map(c=>`<button class="chip" data-a="ncat" data-c="${esc(c)}" style="border-color:${catC(c)};${nCat===c?`background:${catC(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${cnt(c)}</button>`).join('')}</div>`:'')+`<div class="space-y-3">${L.map(noteCard).join('')||empty('ยังไม่มีโน้ต')}</div>`},
 alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
- if(AV){const v=AV,a=v.a;return `<div class="flex items-center gap-3"><button class="btn2" data-a="aback">‹ กลับ</button><b class="text-white flex-1 truncate">${esc(a.t)}</b>${ib('adel',a.id,'🗑️')}</div>`
-  +(v.err?`<div class="glass p-4 text-sm text-amber-400 break-words">⚠️ ${esc(v.err)}</div><button class="btn2 w-full" data-a="aretry">ลองใหม่</button>`:'')
-  +`<div class="grid grid-cols-3 gap-2">${v.files.map((f,k)=>`<button class="scan rounded-xl overflow-hidden aspect-square bg-slate-900" data-a="aimg" data-i="${k}">${f.t?`<img src="${f.t}" class="bt w-full h-full object-cover" alt="">`:'🖼️'}</button>`).join('')}</div>`
-  +(v.busy?empty('กำลังโหลด…'):v.files.length<v.total?`<button class="btn2 w-full" data-a="amore">โหลดเพิ่ม (${v.files.length}/${v.total})</button>`:v.err||v.files.length?'':empty('ไม่พบรูปภาพในโฟลเดอร์นี้'))}
- const cs=[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))],L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
- return sec('เพิ่มอัลบั้ม',fld('ชื่ออัลบั้ม','<input id="an" placeholder="เช่น เอกสารสำคัญ">')
-  +fld('หมวดหมู่','<input id="ac" placeholder="เช่น ครอบครัว, งาน, บัตรประชาชน">','พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
+ if(aEd!==null){const a=S.alb.find(x=>x.id===aEd)||{};
+  return secx(a.id?'แก้ไขอัลบั้ม':'อัลบั้มใหม่','aclose',fld('ชื่ออัลบั้ม',`<input id="an" placeholder="เช่น เอกสารสำคัญ" value="${esc(a.t||'')}">`)
+  +fld('หมวดหมู่',`<input id="ac" placeholder="เช่น ครอบครัว, งาน, บัตรประชาชน" value="${esc(a.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
   +(acs.length?`<div class="flex flex-wrap gap-2">${acs.map(c=>`<button type="button" class="chip" data-a="pickacat" data-c="${esc(c)}" style="border-color:${ac(c)}">${esc(c)}</button>`).join('')}</div>`:'')
-  +fld('ลิงก์โฟลเดอร์ Google Drive','<input id="au" inputmode="url" placeholder="https://drive.google.com/drive/folders/…">')
-  +`<details class="space-y-3"><summary class="text-sm text-slate-300 py-2">รูปอยู่ในบัญชี Google อื่น? (ไม่บังคับ)</summary><p class="text-xs text-slate-500 mb-3">ใส่ URL/Token ของสคริปต์ที่ Deploy จากบัญชีเจ้าของรูป ถ้าเว้นว่างจะใช้ค่าในหน้าตั้งค่า</p><div class="space-y-4">`+fld('Apps Script URL ของบัญชีนั้น','<input id="aapi" inputmode="url">')+fld('Token ของสคริปต์นั้น','<input id="atok">')+`</div></details><button class="btn w-full" data-a="aadd">เพิ่มอัลบั้ม</button>`)
-  +(cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}</div>`:'')
-  +`<div class="space-y-3">${L.map(a=>{const c=ac(a.cat||'ทั่วไป');return `<div class="glass p-4 flex items-center gap-3 cursor-pointer" data-a="aopen" data-i="${a.id}" style="border-left:5px solid ${c};background:linear-gradient(135deg,${c}22,rgba(30,41,59,.55) 60%)"><span class="text-2xl">🖼️</span><div class="flex-1 min-w-0"><b class="text-white break-words block">${esc(a.t)}</b><div class="flex flex-wrap gap-2 mt-1">${tg(esc(a.cat||'ทั่วไป'),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div><span class="text-3xl text-slate-400 leading-none">›</span></div>`}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
-
-docs:()=>sec('เพิ่มเอกสาร & ลิงก์',fld('ชื่อ','<input id="dt" placeholder="เช่น สัญญาเช่า">')+fld('ลิงก์','<input id="du" inputmode="url" placeholder="Google Drive / TikTok / Facebook">')+`<button class="btn w-full" data-a="dadd">บันทึกลิงก์</button>`)+`<div class="space-y-3">${S.docs.map(d=>{const[t,c]=docType(d.u);return`<div class="glass p-4 space-y-3"><b class="text-white break-words block">${esc(d.t)}</b><div class="flex items-center gap-2">${tg(t,c)}<span class="flex-1"></span>${ib('dcopy',d.id,'📋')}<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" class="btn2 !min-h-0 !py-2">เปิดดู</a>${ib('ddel',d.id,'🗑️')}</div></div>`}).join('')||empty('ยังไม่มีลิงก์')}</div>`,
+  +fld('ลิงก์โฟลเดอร์ Google Drive',`<input id="au" inputmode="url" placeholder="https://drive.google.com/drive/folders/…" value="${a.f?'https://drive.google.com/drive/folders/'+esc(a.f):''}">`)
+  +`<details ${a.api?'open':''}><summary class="text-sm text-slate-300 py-2">รูปอยู่ในบัญชี Google อื่น? (ไม่บังคับ)</summary><p class="text-xs text-slate-500 mb-3">ใส่ URL/Token ของสคริปต์ที่ Deploy จากบัญชีเจ้าของรูป ถ้าเว้นว่างจะใช้ค่าในหน้าตั้งค่า</p><div class="space-y-4">`+fld('Apps Script URL ของบัญชีนั้น',`<input id="aapi" inputmode="url" value="${esc(a.api||'')}">`)+fld('Token ของสคริปต์นั้น',`<input id="atok" value="${esc(a.tok||'')}">`)+`</div></details><button class="btn w-full" data-a="asave">💾 บันทึก</button>`
+  +(a.id?`<button class="btn2 w-full dngb" data-a="adel" data-i="${a.id}">ลบอัลบั้มนี้</button>`:''))}
+ const cs=[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))],L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
+ return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`+(cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}</div>`:'')
+  +`<div class="space-y-3">${L.map(a=>{const cat=a.cat||'ทั่วไป',c=ac(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id)}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
+docs:()=>sec('เพิ่มเอกสาร & ลิงก์',fld('ชื่อ','<input id="dt" placeholder="เช่น สัญญาเช่า">')+fld('ลิงก์','<input id="du" inputmode="url" placeholder="Google Drive / TikTok / Facebook">')+`<button class="btn w-full" data-a="dadd">บันทึกลิงก์</button>`)+`<div class="space-y-3">${S.docs.map(d=>{const[t,c]=docType(d.u);return card(c,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(t,c)}<span class="truncate">${esc(host(d.u))}</span></div></div>${pill(ab('dcopy',d.id,IC.copy),`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`,ab('ddel',d.id,IC.trash,'dng'))}</div>`)}).join('')||empty('ยังไม่มีลิงก์')}</div>`,
 set:()=>sec('ความปลอดภัย',`<button class="btn2 w-full" data-a="pin">เปลี่ยน Master PIN</button><button class="btn2 w-full" data-a="dpin">ตั้ง Duress PIN (หน้าจอหลอก)</button>`+fld('ล็อกอัตโนมัติเมื่อไม่ใช้งาน',`<select id="auto">${[[0,'ปิด'],[30,'30 วินาที'],[60,'1 นาที'],[300,'5 นาที']].map(([v,l])=>`<option value="${v}" ${S.set.auto==v?'selected':''}>${l}</option>`).join('')}</select>`)+`<button class="btn2 w-full" data-a="wipe">ล้างเซสชันฉุกเฉิน</button>`)+
  sec('จัดการเช็คลิสต์',fld('ย้ายรายการที่เสร็จเข้าคลังอัตโนมัติ',`<select id="aarch">${[[0,'ปิด'],[7,'หลัง 7 วัน'],[30,'หลัง 30 วัน'],[90,'หลัง 90 วัน']].map(([v,l])=>`<option value="${v}" ${S.set.arch==v?'selected':''}>${l}</option>`).join('')}</select>`,'รายการในคลังกู้คืนหรือลบถาวรได้ในหน้าเช็คลิสต์'))+
  sec('Google Sheets Backend',`<p class="text-sm">${S.set.api?'🟢 ตั้งค่าแล้ว':'⚪ ยังไม่เชื่อมต่อ'}</p>`+fld('Apps Script Web App URL',`<input id="api" inputmode="url" value="${esc(S.set.api)}">`)+fld('Token',`<input id="tok" value="${esc(S.set.token)}">`)+`<div class="grid grid-cols-3 gap-3"><button class="btn2" data-a="apisave">บันทึก</button><button class="btn2" data-a="push">ส่งขึ้น</button><button class="btn2" data-a="pull">ดึงลง</button></div>`)+
@@ -196,12 +229,12 @@ const val=id=>$(id).value.trim();
 async function gas(a,qs){const u=a.api||S.set.api,k=a.api?a.tok:S.set.token;if(!u)throw new Error('ยังไม่ได้ตั้งค่า Apps Script URL (ไปที่ตั้งค่า → Google Sheets Backend)');let r;
   try{r=await(await fetch(`${u}?${qs}&token=${encodeURIComponent(k||'')}`)).json()}catch(e){throw new Error('เชื่อมต่อสคริปต์ไม่ได้ — ตรวจ URL และการ Deploy (Who has access = Anyone)')}
   if(!r.ok){const m=String(r.error||'');throw new Error(m==='bad token'?'Token ไม่ตรงกับที่ตั้งไว้ในสคริปต์':/No item|permission|access|not found/i.test(m)?'บัญชีที่ Deploy สคริปต์เปิดโฟลเดอร์นี้ไม่ได้ — แชร์โฟลเดอร์ให้บัญชีนั้น หรือเพิ่มอัลบั้มโดยใส่ URL/Token ของสคริปต์จากบัญชีเจ้าของรูป':m)}return r}
-async function loadMore(){const v=AV;v.busy=1;v.err='';R();try{const r=await gas(v.a,`action=folder&id=${v.a.f}&from=${v.files.length}&n=24`);v.files.push(...r.files);v.total=r.total}catch(e){v.err=e.message}v.busy=0;if(AV===v)R()}
 const A={
- cadd:()=>{const t=val('#ct');if(!t)return toast('พิมพ์ภารกิจก่อน')||1;S.check.unshift({id:uid(),at:Date.now(),t,lv:$('#cl').value,d:0});ckF='todo'},
+ cadd:()=>{const t=val('#ct');if(!t)return toast('พิมพ์ภารกิจก่อน')||1;S.check.unshift({id:uid(),at:Date.now(),t,lv:$('#sw').classList.contains('on')?'C':'N',d:0});ckF='todo'},
+ clv:()=>{$('#sw').classList.toggle('on');return 1},
  ctog:i=>{const c=by('check',i);c.d=c.d?0:1;c.dn=c.d?Date.now():0;toast(c.d?'ย้ายไปแท็บ “เสร็จแล้ว”':'กลับไปที่ “ค้างอยู่”')},
  cedit:i=>{const c=by('check',i);if(!c.d)ckEd=+i},
- csave:()=>{const t=val('#cet');if(!t)return toast('ภารกิจต้องไม่ว่าง')||1;const c=by('check',ckEd);c.t=t;c.lv=$('#cel').value;c.up=Date.now();ckEd=null},
+ csave:()=>{const t=val('#cet');if(!t)return toast('ภารกิจต้องไม่ว่าง')||1;const c=by('check',ckEd);c.t=t;c.lv=$('#sw').classList.contains('on')?'C':'N';c.up=Date.now();ckEd=null},
  ccancel:()=>{ckEd=null},
  cdel:i=>{if(confirm('ลบรายการนี้ถาวร?')){rm('check',i);rm('arch',i)}},
  cf:(i,e)=>{ckF=e.dataset.c;ckN=20}, more:()=>{ckN+=20},
@@ -223,17 +256,16 @@ const A={
   if(S.cats[cat]===undefined)S.cats[cat]=Object.keys(S.cats).length%PAL.length;
   if(editing)Object.assign(by('notes',editing),{t,h,cat,up:Date.now()});else S.notes.unshift({id:uid(),t,h,cat,at:Date.now(),up:Date.now(),pin:0});editing=null},
  npin:i=>{const n=by('notes',i);n.pin=n.pin?0:1},
- eye:i=>{RV.has(+i)?RV.delete(+i):RV.add(+i)}, show:i=>{RV.add(+i)}, nexp:i=>{EX.has(+i)?EX.delete(+i):EX.add(+i)},
+ show:i=>{RV.has(+i)?RV.delete(+i):RV.add(+i)}, nexp:i=>{EX.has(+i)?EX.delete(+i):EX.add(+i)},
  ncopy:i=>{navigator.clipboard.writeText(txt(by('notes',i).h)).then(()=>toast('คัดลอกแล้ว'));return 1},
  ndel:i=>{if(confirm('ลบโน้ตนี้?'))rm('notes',i)},
  acat:(i,e)=>{aCat=e.dataset.c}, pickacat:(i,e)=>{$('#ac').value=e.dataset.c;return 1},
- aadd:()=>{const t=val('#an'),u=val('#au'),m=u.match(/folders\/([\w-]+)|[?&]id=([\w-]+)/),cat=val('#ac')||'ทั่วไป',api=val('#aapi'),tok=val('#atok');if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;
+ anew:()=>{aEd=0}, aclose:()=>{aEd=null}, aedit:i=>{aEd=+i},
+ asave:()=>{const t=val('#an'),m=val('#au').match(/folders\/([\w-]+)|[?&]id=([\w-]+)/),cat=val('#ac')||'ทั่วไป',api=val('#aapi'),tok=val('#atok');if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;
   if(S.acats[cat]===undefined)S.acats[cat]=Object.keys(S.acats).length%PAL.length;
-  S.alb.unshift({id:uid(),t,cat,f:m[1]||m[2],...(api?{api,tok}:{})})},
- adel:i=>{if(confirm('ลบอัลบั้มนี้ออกจากแอป? (ไม่ลบรูปใน Drive)')){rm('alb',i);AV=null}},
- aopen:async i=>{AV={a:by('alb',i),files:[],total:0,err:'',busy:0};await loadMore();return 1},
- aback:()=>{AV=null}, aretry:async()=>{await loadMore();return 1}, amore:async()=>{await loadMore();return 1},
- aimg:i=>{LB={list:AV.files,i:+i,z:1,mask:false,cache:{},ld:{},err:''};lbDraw();return 1},
+  const o={t,cat,f:m[1]||m[2],api,tok:api?tok:''};if(aEd){const a=by('alb',aEd);if(a.f!==o.f){delete a.cv;delete a.cvId}Object.assign(a,o)}else S.alb.unshift({id:uid(),...o});aEd=null},
+ adel:i=>{if(confirm('ลบอัลบั้มนี้ออกจากแอป? (ไม่ลบรูปใน Drive)')){rm('alb',i);aEd=null}},
+ aopen:async i=>{await openAlbum(by('alb',i));return 1},
  dadd:()=>{const t=val('#dt'),u=val('#du');if(!t||!/^https?:\/\//.test(u))return toast('ใส่ชื่อและลิงก์ที่ขึ้นต้นด้วย https://')||1;S.docs.unshift({id:uid(),t,u});log('เพิ่มลิงก์: '+t)},
  dcopy:i=>{navigator.clipboard.writeText(by('docs',i).u).then(()=>toast('คัดลอก URL แล้ว'));return 1},
  ddel:i=>{if(confirm('ลบลิงก์นี้?'))rm('docs',i)},
@@ -256,22 +288,32 @@ $('#view').addEventListener('change',async e=>{if(e.target.id==='auto'){S.set.au
   if(e.target.id==='impf'){const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(j.meta.salt!==meta.salt)throw 0;S=await unseal(j.data,K);await save();R();toast('นำเข้าแล้ว')}catch(x){toast('นำเข้าไม่ได้ — ต้องเป็นไฟล์จากห้องนิรภัย/PIN เดียวกัน')}}
   if(e.target.dataset.a==='ctog'){await run(e.target)}});
 async function run(el){const a=el.dataset.a;if(!A[a])return;if(duress&&['pin','dpin','push','pull','exp','imp'].includes(a))return;const skip=await A[a](el.dataset.i,el);await save();if(skip!==1)R()}
-document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;AV=null;ckEd=null;$('#q').value='';R();return}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;aEd=null;ckEd=null;$('#q').value='';R();return}
   const el=e.target.closest('[data-a]');if(el&&el.type!=='checkbox'&&S)run(el)});
 
 document.addEventListener('mousedown',e=>{if(e.target.closest('.tb'))e.preventDefault()});
+$('#view').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ct'){e.preventDefault();run({dataset:{a:'cadd'}})}});
 $('#view').addEventListener('paste',e=>{if(e.target.id==='nh'){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
 
 /* ---------- Lightbox ---------- */
-function lbDraw(){const L=LB,f=L.list[L.i],src=L.cache[f.id];if(src===undefined&&!L.ld[f.id]){L.ld[f.id]=1;gas(AV.a,`action=img&id=${f.id}`).then(r=>{L.cache[f.id]=r.d;if(LB===L)lbDraw()}).catch(e=>{L.cache[f.id]='';L.err=e.message;if(LB===L)lbDraw()})}$('#lb').classList.remove('hidden');
-  $('#lb').innerHTML=`<div class="flex items-center gap-2 p-3 text-white"><span class="flex-1 text-sm truncate">${L.i+1}/${L.list.length} ${esc(f.name)}</span><button class="btn2" id="zo">−</button><span>${Math.round(L.z*100)}%</span><button class="btn2" id="zi">+</button><button class="btn2" id="mk">${L.mask?'👁️':'🙈'}</button><button class="btn2" id="cl2">✕</button></div>
-  <div class="flex-1 overflow-auto flex items-center justify-center relative">${src?`<img src="${src}" style="transform:scale(${L.z});transition:transform .2s;max-width:100%;max-height:100%;${L.mask?'filter:blur(30px)':''}" alt="">`:`<span class="text-slate-400 px-6 text-center">${L.err||'กำลังโหลดรูป…'}</span>`}${L.mask?'<b class="absolute text-emerald-400 tracking-widest border border-emerald-400 px-3 py-1">DATA SECURED // REDACTED</b>':''}</div>
-  <div class="flex justify-between p-3"><button class="btn2" id="pv">◀</button><button class="btn2" id="nx">▶</button></div>`;
-  const go=d=>{L.i=(L.i+d+L.list.length)%L.list.length;L.z=1;L.err='';lbDraw()},zz=d=>{L.z=Math.min(3,Math.max(.5,L.z+d));lbDraw()};
-  $('#pv').onclick=()=>go(-1);$('#nx').onclick=()=>go(1);$('#zi').onclick=()=>zz(.25);$('#zo').onclick=()=>zz(-.25);
-  $('#mk').onclick=()=>{L.mask=!L.mask;lbDraw()};$('#cl2').onclick=()=>{LB=null;$('#lb').classList.add('hidden')};L.go=go;L.zz=zz}
+async function openAlbum(a){const L=LB={a,list:[],i:0,z:1,mask:false,cache:{},ld:{},err:'',busy:1};lbDraw();
+  try{const r=await gas(a,`action=folder&id=${a.f}&show=${a.cvId||''}`);if(LB!==L)return;L.list=r.files;if(!r.files.length)L.err='ไม่พบรูปภาพในโฟลเดอร์นี้';else{L.i=Math.max(0,r.files.findIndex(f=>f.id===r.sid));if(r.d)L.cache[r.sid]=r.d}}catch(e){L.err=e.message}
+  L.busy=0;if(LB===L)lbDraw()}
+function loadImg(L,f){if(L.ld[f.id])return;L.ld[f.id]=1;gas(L.a,`action=img&id=${f.id}`).then(r=>{L.cache[f.id]=r.d}).catch(e=>{L.cache[f.id]='';L.err=e.message}).then(()=>{if(LB===L&&L.list[L.i]===f)lbDraw()})}
+const pre=L=>[1,-1].forEach(d=>{const f=L.list[(L.i+d+L.list.length)%L.list.length];if(f&&L.cache[f.id]===undefined)loadImg(L,f)});
+function setCover(L){const f=L.list[L.i],src=L.cache[f.id];if(!src)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),z=200,s=Math.min(im.width,im.height);c.width=c.height=z;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,z,z);L.a.cv=c.toDataURL('image/jpeg',.7);L.a.cvId=f.id;save();if(LB===L)lbDraw();toast('ตั้งเป็นปกแล้ว')};im.src=src}
+function lbDraw(){const L=LB;if(!L)return;const f=L.list[L.i],src=f?L.cache[f.id]:'';$('#lb').classList.remove('hidden');if(f&&src===undefined)loadImg(L,f);
+  $('#lb').innerHTML=`<div class="flex items-center gap-2 p-3 text-white"><span class="flex-1 min-w-0 text-sm truncate">${f?`${L.i+1}/${L.list.length} • ${esc(f.name)}`:esc(L.a.t)}</span>${f?`<button class="lbb" id="cv" aria-label="ตั้งเป็นปก">${L.a.cvId===f.id?IC.starF:IC.star}</button><button class="lbb" id="zo">−</button><span class="text-xs w-10 text-center">${Math.round(L.z*100)}%</span><button class="lbb" id="zi">+</button><button class="lbb" id="mk" aria-label="ซ่อนรูป">${L.mask?IC.eyeoff:IC.eye}</button>`:''}<button class="lbb" id="cl2" aria-label="ปิด">${IC.x}</button></div>
+  <div class="flex-1 overflow-auto flex items-center justify-center relative">${src?`<img src="${src}" style="transform:scale(${L.z});transition:transform .2s;max-width:100%;max-height:100%;object-fit:contain;${L.mask?'filter:blur(30px)':''}" alt="">`:`<span class="text-slate-400 px-6 text-center">${L.err||'กำลังโหลดรูป…'}</span>`}${L.mask&&src?'<b class="absolute text-emerald-400 tracking-widest border border-emerald-400 px-3 py-1">DATA SECURED // REDACTED</b>':''}</div>
+  <div class="flex justify-between p-3"><button class="lbb" id="pv" aria-label="ก่อนหน้า" style="transform:scaleX(-1)">${IC.chev}</button><button class="lbb" id="nx" aria-label="ถัดไป">${IC.chev}</button></div>`;
+  const n=L.list.length,go=d=>{if(!n)return;L.i=(L.i+d+n)%n;L.z=1;L.err='';lbDraw()},zz=d=>{L.z=Math.min(3,Math.max(.5,L.z+d));lbDraw()};
+  $('#pv').onclick=()=>go(-1);$('#nx').onclick=()=>go(1);if(f){$('#zi').onclick=()=>zz(.25);$('#zo').onclick=()=>zz(-.25);$('#mk').onclick=()=>{L.mask=!L.mask;lbDraw()};$('#cv').onclick=()=>setCover(L)}
+  $('#cl2').onclick=()=>{LB=null;$('#lb').classList.add('hidden');$('#lb').innerHTML=''};L.go=go;L.zz=zz;if(src)pre(L)}
 function lbKey(e){const L=LB;if(e.key==='ArrowRight')L.go(1);if(e.key==='ArrowLeft')L.go(-1);if(e.key==='+')L.zz(.25);if(e.key==='-')L.zz(-.25);if(e.key==='Escape')$('#cl2').click()}
+let tx=0,ty=0;$('#lb').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
+$('#lb').addEventListener('touchend',e=>{if(!LB||LB.z>1||!LB.list.length)return;const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)LB.go(dx<0?1:-1)});
 
+$('#rf').innerHTML=IC.refresh;$('#lock').innerHTML=IC.lock;
 /* ---------- PWA ---------- */
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e});
 if('serviceWorker'in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had)location.reload()});addEventListener('load',()=>navigator.serviceWorker.register('sw.js'))}
