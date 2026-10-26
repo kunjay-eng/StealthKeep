@@ -118,6 +118,14 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 .nplus{position:absolute;inset:0;display:grid;place-items:center;background:rgba(4,18,13,.62);color:#6EE7B7;font-size:1.9rem;font-weight:700;text-shadow:0 0 12px rgba(16,185,129,.75)}
 .nth-e{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.8rem;color:var(--amb)}
 .nth-e .chip{min-height:2rem;padding:.2rem .8rem;font-size:.8rem}
+#dock{position:relative}
+#dock.min #dkv{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden}
+#dock.min #dks,#dock.min #dkse,#dock.min #dkc,#dock.min #dkld{display:none!important}
+#dock.min{padding-top:.35rem;padding-bottom:.35rem}#dock.min .dkb{height:2.1rem;min-width:2.4rem}#dock.min #dkt{font-size:.85rem}
+.dki>div{cursor:pointer}
+.selbar{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.94);border-color:rgba(248,113,113,.45)}
+.ck{width:1.7rem;height:1.7rem;flex:none;border-radius:8px;border:2px solid #64748B;display:grid;place-items:center;color:#1a0505;font-weight:800;font-size:1rem}
+.ck.on{background:#F87171;border-color:#F87171;box-shadow:0 0 10px rgba(248,113,113,.6)}
 </style>
 </head>
 <body>
@@ -142,7 +150,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
   </header>
   <main id="view" class="flex-1 overflow-y-auto p-4 space-y-4"></main>
   <div id="dock" class="hidden flex-none glass rounded-none border-x-0 border-b-0 px-3 pt-2">
-    <div id="dkm"><div id="dkv"></div><div class="dki"><div class="flex-1 min-w-0"><b id="dkt"></b><span id="dks"></span></div><button id="dkx" class="dkb" aria-label="ปิดเพลเยอร์">✕</button></div></div>
+    <div id="dkm"><div id="dkv"></div><div class="dki"><div class="flex-1 min-w-0"><b id="dkt"></b><span id="dks"></span></div><button id="dkmn" class="dkb" aria-label="ย่อเพลเยอร์">▾</button><button id="dkx" class="dkb" aria-label="ปิดเพลเยอร์">✕</button></div></div>
     <div id="dkld" style="display:none;height:4px;border-radius:9999px;background:rgba(148,163,184,.25);overflow:hidden;margin-top:.45rem"><div style="height:100%;width:0%;background:#34D399;transition:width .25s"></div></div>
     <div id="dkse"><span id="dkct">0:00</span><input type="range" id="dksk" min="0" max="1000" value="0" step="1" aria-label="เลื่อนเวลาเพลง"><span id="dkdu">0:00</span></div>
     <audio id="dka" preload="auto"></audio>
@@ -155,7 +163,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='2.3.1',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='2.4.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=b=>{const u=new Uint8Array(b);let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t)},ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -165,7 +173,7 @@ async function unseal(t,k){const o=JSON.parse(t);return JSON.parse(dec.decode(aw
 let meta=JSON.parse(localStorage.sk_meta||'null'),S,K,duress=false,tab='home',buf='',first=null,LB=null,idle,editing=null,deferred,RS=null,AT=null,ABUSY=0,ABC=0,ABD=20000,ABL='';
 const PLR={q:[],i:-1,n:0,sh:0,rp:0,yt:null,err:0,ply:0,k:'',busy:0,soft:0,url:'',slt:0,sk:0,cid:null,nid:null,nok:0,sub:'',nx:-1},DRP=new Map(),DRPG=new Map();let YTP=null;
 const IMG=new Map(),PEND=new Map(),MAXRAM=60,MAXDB=600,MAXAUD=40,CAP=500,WARMP=new Map(),WB=3,WW=2;let NOBATCH=0; // IMG = blob URL ของรูปในหน่วยความจำ, PEND = รูปที่กำลังโหลด, WARMP = รูปที่กำลังโหลดแบบชุดทั้งอัลบั้ม, WB = รูปต่อชุด, WW = จำนวนชุดพร้อมกัน, CAP = จำนวนรูปสูงสุดที่โหลดล่วงหน้าต่ออัลบั้ม
-const DEF=()=>({check:[],notes:[],alb:[],docs:[],pl:[],arch:[],cats:{},acats:{},set:{auto:60,api:'',token:'',arch:30}});
+const DEF=()=>({check:[],notes:[],alb:[],docs:[],pl:[],pls:[],arch:[],cats:{},acats:{},set:{auto:60,api:'',token:'',arch:30}});
 const decoy=()=>({...DEF(),check:[{id:1,at:Date.now()-72e5,t:'ซื้อของเข้าบ้าน',lv:'N',d:0}],notes:[{id:1,t:'รายการซื้อ',h:'นม ไข่ ขนมปัง',pin:0,cat:'ทั่วไป'}],docs:[{id:1,t:'ใบเสร็จค่าน้ำ',u:'https://example.com'}]});
 const save=async()=>{if(!duress&&K){localStorage.sk_data=await seal(S);autoQ()}};
 const log=()=>{};
@@ -233,7 +241,7 @@ gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำ�
 /* ---------- Views ---------- */
 const TABS=[['home','🏠','หน้าแรก'],['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร'],['pl','🎵','เพลง'],['set','⚙️','ตั้งค่า']];
 const PAL=['#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899','#3B82F6'],catC=c=>PAL[S.cats[c]??0];
-let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null,pEd=null,plG='ทั้งหมด';const RV=new Set(),EX=new Set(),HLP=new Set();
+let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null,pEd=null,plG='ทั้งหมด',plF=null,plSel=null;const PLB=new Set();const RV=new Set(),EX=new Set(),HLP=new Set();
 const svg=(p,f,w=18)=>`<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="${f||'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const PIN='<path d="M12 17v5"/><path d="M9 3h6l-1 7 3 3v2H7v-2l3-3Z"/>',STAR='<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9Z"/>',EYE='<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
 const IC={copy:svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),edit:svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),trash:svg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),pin:svg(PIN),pinF:svg(PIN,'currentColor'),
@@ -305,13 +313,23 @@ alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
  const cs=[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))],L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
  return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`+(cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}</div>`:'')
   +`<div class="space-y-3">${L.map(a=>{const cat=a.cat||'ทั่วไป',c=ac(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id,a.hm)}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
-pl:()=>{const gs=[...new Set(S.pl.map(x=>x.g||'ทั่วไป'))];if(plG!=='ทั้งหมด'&&!gs.includes(plG))plG='ทั้งหมด';
+pl:()=>{const PS=plNorm(),gs=PS.map(p=>p.n);if(plG!=='ทั้งหมด'&&!gs.includes(plG))plG='ทั้งหมด';
  if(pEd!==null){const d=pEd?by('pl',pEd)||{}:{};return secx(pEd?'แก้ไขเพลง':'เพิ่มเพลง','mclose',fld('ชื่อเพลง',`<input id="pl_t" placeholder="เช่น ลูกกรุง Acoustic" value="${esc(d.t||'')}">`)+fld('ลิงก์เพลง',`<input id="pl_u" inputmode="url" placeholder="YouTube / Spotify / SoundCloud" value="${esc(d.u||'')}">`,'YouTube / Spotify / SoundCloud เล่นในเพลเยอร์ฝัง • ไฟล์ MP3 ใน Google Drive (ลิงก์ไฟล์) เล่นต่อได้ตอนปิดจอ • วางลิงก์โฟลเดอร์ Drive เพื่อนำเข้าทุกเพลงในโฟลเดอร์ (ตั้งค่า Google Sheets Backend ก่อน)')+fld('เพลย์ลิสต์',`<input id="pl_g" list="pl_gl" placeholder="เช่น ลูกกรุง, ขับรถ" value="${esc(d.g||(plG!=='ทั้งหมด'?plG:''))}"><datalist id="pl_gl">${gs.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>`,'ตั้งชื่อกลุ่มเพื่อแยกเพลย์ลิสต์ (เว้นว่าง = ทั่วไป)')+`<button class="btn w-full" data-a="msave">💾 บันทึก</button>`)}
- const L=S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG),cur=PLR.q[PLR.i];
- return `<button class="btn w-full" data-a="mnew">+ เพิ่มเพลง</button>`
- +(gs.length>1?`<div class="chips">${chip(plG==='ทั้งหมด','mgrp','ทั้งหมด','ทั้งหมด '+S.pl.length)}${gs.map(g=>chip(plG===g,'mgrp',g,g+' '+S.pl.filter(x=>(x.g||'ทั่วไป')===g).length)).join('')}</div>`:'')
- +(L.length?`<div class="grid grid-cols-2 gap-3"><button class="btn2" data-a="mall">▶ เล่นทั้งหมด</button><button class="btn2" data-a="mshuf">🔀 สุ่มเล่น</button></div>`:'')
- +`<div class="space-y-3">${L.map(t=>{const s=plSrc(t.u),[tl,c]=PLT[s.k],on=cur===t.id&&!$('#dock').classList.contains('hidden');return card(c,`<div class="flex items-center gap-3"><div class="text-2xl">${on?'🎶':'🎵'}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(t.t)}</b><div class="meta mt-1.5">${tg(tl,c)}<span>${esc(t.g||'ทั่วไป')}</span></div></div>${pill(`<a data-a="mext" href="${esc(t.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดภายนอก">${IC.open}</a>`,ab('medit',t.id,IC.edit),ab('mdel',t.id,IC.trash,'dng'))}</div>`,'cursor-pointer" data-a="mplay" data-i="'+t.id,on)}).join('')||empty('ยังไม่มีเพลง — กด “+ เพิ่มเพลง” แล้ววางลิงก์ YouTube / Spotify / SoundCloud')}</div>`},
+ if(plF!==null){const p=plF?PS.find(x=>x.id===plF)||{}:{};return secx(p.id?'แก้ไขเพลย์ลิสต์':'เพลย์ลิสต์ใหม่','mfclose',fld('ชื่อเพลย์ลิสต์',`<input id="pf_n" placeholder="เช่น ลูกกรุง, ขับรถ" value="${esc(p.n||'')}">`)+fld('ลิงก์โฟลเดอร์ Google Drive (ไม่บังคับ)',`<input id="pf_u" inputmode="url" placeholder="https://drive.google.com/drive/folders/…" value="${p.f?'https://drive.google.com/drive/folders/'+esc(p.f):''}">`,'1 เพลย์ลิสต์ = 1 โฟลเดอร์ • เพิ่มไฟล์ MP3 ลงโฟลเดอร์นี้ใน Drive แล้วกด “รีเฟรช” ในเพลย์ลิสต์ เพลงใหม่จะขึ้นให้ทันที (ต้องตั้งค่า Google Sheets Backend ก่อน)')+`<button class="btn w-full" data-a="mfsave">💾 บันทึก</button>`)}
+ const cur=PLR.q[PLR.i],curT=$('#dock').classList.contains('hidden')?null:by('pl',cur),PC=['#38BDF8','#10B981','#F59E0B','#EC4899','#8B5CF6','#06B6D4'],cnt=n=>S.pl.filter(x=>(x.g||'ทั่วไป')===n).length;
+ if(plG==='ทั้งหมด'){
+  return `<div class="grid grid-cols-2 gap-3"><button class="btn" data-a="mfnew">+ เพลย์ลิสต์ใหม่</button><button class="btn2" data-a="mnew">+ เพิ่มเพลงเดี่ยว</button></div>`
+  +(S.pl.length?`<div class="grid grid-cols-2 gap-3"><button class="btn2" data-a="mshuf">🔀 สุ่มทุกเพลง (${S.pl.length})</button>${PS.some(p=>p.f)?`<button class="btn2" data-a="mrefall">${PLB.size?'⏳ กำลังรีเฟรช…':'🔄 รีเฟรชทั้งหมด'}</button>`:'<span></span>'}</div>`:'')
+  +`<div class="space-y-3">${PS.map((p,ix)=>{const c=PC[ix%PC.length],n=cnt(p.n),on=curT&&(curT.g||'ทั่วไป')===p.n;return card(c,`<div class="flex items-center gap-3"><div class="text-3xl">${on?'🎶':'📂'}</div><div class="flex-1 min-w-0"><b class="text-white text-lg break-words block leading-snug">${esc(p.n)}</b><div class="meta mt-1.5">${tg(n+' เพลง',c)}${p.f?tg('DRIVE','#38BDF8'):''}${p.up?`<span>รีเฟรช ${sd(p.up)}</span>`:''}</div></div>${p.f?pill(ab('mrefresh',p.id,PLB.has(p.id)?'⏳':IC.refresh)):''}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="mopen" data-i="'+p.id,on)}).join('')||empty('ยังไม่มีเพลย์ลิสต์ — กด “+ เพลย์ลิสต์ใหม่” แล้ววางลิงก์โฟลเดอร์ Google Drive ที่มีไฟล์เพลง')}</div>`}
+ const P0=PS.find(p=>p.n===plG),L=S.pl.filter(x=>(x.g||'ทั่วไป')===plG),c0=PC[PS.indexOf(P0)%PC.length],bz=PLB.has(P0.id),sel=plSel;
+ return `<div class="flex items-center gap-3"><button class="hb" data-a="mback" aria-label="กลับ" style="transform:scaleX(-1)">${IC.chev}</button><div class="min-w-0 flex-1"><h2 class="text-white font-bold text-xl break-words leading-snug">${esc(plG)}</h2><div class="meta mt-1">${tg(L.length+' เพลง',c0)}${P0.f?tg('DRIVE','#38BDF8'):''}${P0.up?`<span>รีเฟรช ${sd(P0.up)}</span>`:''}</div></div></div>`
+  +(sel?`<div class="selbar glass p-3 flex items-center gap-2"><b class="text-white flex-1 text-sm">เลือก ${sel.size}/${L.length}</b><button class="chip" data-a="mselall">${sel.size&&sel.size===L.length?'ไม่เลือก':'เลือกทั้งหมด'}</button><button class="chip" style="border-color:#F87171;color:#F87171" data-a="mdelsel">🗑 ลบ ${sel.size}</button><button class="chip" data-a="msel">เสร็จ</button></div>`
+  :(L.length?`<div class="grid grid-cols-2 gap-3"><button class="btn2" data-a="mall">▶ เล่นทั้งหมด</button><button class="btn2" data-a="mshuf">🔀 สุ่มเล่น</button></div>`:'')
+  +`<div class="grid grid-cols-2 gap-3">${P0.f?`<button class="btn" data-a="mrefresh" data-i="${P0.id}">${bz?'⏳ กำลังอ่านโฟลเดอร์…':'🔄 รีเฟรชเพลย์ลิสต์'}</button>`:`<button class="btn2" data-a="mfedit" data-i="${P0.id}">📁 ผูกโฟลเดอร์ Drive</button>`}<button class="btn2" data-a="mnew">+ เพิ่มเพลง</button></div>`
+  +`<div class="grid grid-cols-3 gap-3"><button class="btn2" data-a="msel">☑ เลือกลบ</button><button class="btn2" data-a="mfedit" data-i="${P0.id}">✏️ แก้ไข</button><button class="btn2 dngb" data-a="mdelpl" data-i="${P0.id}">🗑 ลบทั้งหมด</button></div>`)
+  +`<div class="space-y-3">${L.map((t,ix)=>{const s=plSrc(t.u),[tl,c]=PLT[s.k],on=curT&&curT.id===t.id;
+   if(sel){const k=sel.has(t.id);return card(k?'#F87171':c,`<div class="flex items-center gap-3"><span class="ck ${k?'on':''}">${k?'✓':''}</span><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(t.t)}</b><div class="meta mt-1.5">${tg(tl,c)}<span>#${ix+1}</span></div></div></div>`,'cursor-pointer" data-a="mtog" data-i="'+t.id)}
+   return card(c,`<div class="flex items-center gap-3"><div class="text-2xl">${on?'🎶':'🎵'}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(t.t)}</b><div class="meta mt-1.5">${tg(tl,c)}<span>#${ix+1}</span></div></div>${pill(`<a data-a="mext" href="${esc(t.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดภายนอก">${IC.open}</a>`,ab('medit',t.id,IC.edit),ab('mdel',t.id,IC.trash,'dng'))}</div>`,'cursor-pointer" data-a="mplay" data-i="'+t.id,on)}).join('')||empty('เพลย์ลิสต์นี้ยังไม่มีเพลง — กด “🔄 รีเฟรช” เพื่อดึงจากโฟลเดอร์ หรือ “+ เพิ่มเพลง”')}</div>`},
 docs:()=>{if(dEd!==null){const d=dEd?S.docs.find(x=>x.id===dEd)||{}:{};return secx(dEd?'แก้ไขลิงก์':'เพิ่มเอกสาร & ลิงก์','dclose',fld('ชื่อ',`<input id="dt" placeholder="เช่น สัญญาเช่า" value="${esc(d.t||'')}">`)+fld('ลิงก์',`<input id="du" inputmode="url" placeholder="Google Drive / TikTok / Facebook" value="${esc(d.u||'')}">`,'วางลิงก์เอกสาร Drive, คลิป TikTok หรือ Facebook Reels')+HM(d.hm)+`<button class="btn w-full" data-a="dsave">💾 บันทึก</button>`)}
  return `<button class="btn w-full" data-a="dnew">+ เพิ่มลิงก์</button>`+`<div class="space-y-3">${S.docs.map(d=>{const[t,c]=docType(d.u);return card(c,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(t,c)}<span class="truncate">${esc(host(d.u))}</span></div></div>${pill(`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`,ab('dcopy',d.id,IC.copy),ab('dedit',d.id,IC.edit),ab('ddel',d.id,IC.trash,'dng'))}</div>`,'',d.hm)}).join('')||empty('ยังไม่มีลิงก์')}</div>`},
 set:()=>{const row=(l,a,d)=>`<div class="space-y-2"><button class="btn2 w-full" data-a="${a}">${l}</button><p class="text-xs text-slate-500">${d}</p></div>`;
@@ -385,9 +403,25 @@ const A={
   if(s.k==='drf'){if(pEd)return toast('ลิงก์โฟลเดอร์ใช้ได้ตอนเพิ่มเพลงใหม่เท่านั้น')||1;toast('กำลังอ่านรายชื่อเพลงในโฟลเดอร์…');let r;try{r=await gas({},'action=audiolist&id='+s.id)}catch(e){return toast(e.message)||1}
     if(!r.files)return toast('Apps Script ยังไม่รองรับ — Deploy Code.gs เวอร์ชัน 2.1.0 ใหม่')||1;if(!r.files.length)return toast('ไม่พบไฟล์เสียงในโฟลเดอร์นี้')||1;
     const have=new Set(S.pl.map(x=>plSrc(x.u).id)),used=new Set(S.pl.map(x=>x.id));let n=0;for(const f of r.files){if(have.has(f.id))continue;let id=uid();while(used.has(id))id++;used.add(id);S.pl.push({id,t:f.name.replace(/\.[A-Za-z0-9]{2,5}$/,''),u:'https://drive.google.com/file/d/'+f.id+'/view',g});n++}
-    toast(n?`เพิ่ม ${n} เพลงแล้ว`:'เพลงในโฟลเดอร์นี้อยู่ในรายการครบแล้ว');pEd=null;if(g)plG=g;return}
+    toast(n?`เพิ่ม ${n} เพลงแล้ว`:'เพลงในโฟลเดอร์นี้อยู่ในรายการครบแล้ว');pEd=null;{const P=plNorm().find(q=>q.n===g);if(P&&!P.f){P.f=s.id;P.up=Date.now()}}if(g)plG=g;return}
   if(!t)return toast('ใส่ชื่อเพลง')||1;if(pEd)Object.assign(by('pl',pEd),{t,u,g});else S.pl.push({id:uid(),t,u,g});pEd=null},
- mdel:i=>{if(!confirm('ลบเพลงนี้?'))return 1;const cur=PLR.q[PLR.i];rm('pl',i);if(cur==i)plStop();else{PLR.q=PLR.q.filter(x=>x!=i);PLR.i=PLR.q.indexOf(cur)}},
+ mdel:i=>{if(!confirm('ลบเพลงนี้?'))return 1;plRemove(new Set([+i]))},
+ mfnew:()=>{plF=0}, mfclose:()=>{plF=null}, mfedit:i=>{plF=+i},
+ mopen:i=>{const P=plNorm().find(x=>x.id==i);if(P){plG=P.n;plSel=null}}, mback:()=>{plG='ทั้งหมด';plSel=null},
+ mfsave:async()=>{const n=val('#pf_n'),u=val('#pf_u');if(!n)return toast('ตั้งชื่อเพลย์ลิสต์ก่อน')||1;
+  let f='';if(u){const q=plSrc(u);if(q.k!=='drf')return toast('ใส่ลิงก์โฟลเดอร์ Google Drive (…/folders/…)')||1;f=q.id}
+  const PS=plNorm(),me=plF?PS.find(x=>x.id===plF):null;if(PS.some(x=>x!==me&&x.n.toLowerCase()===n.toLowerCase()))return toast('มีเพลย์ลิสต์ชื่อนี้แล้ว')||1;
+  let P=me,oldF='';
+  if(me){oldF=me.f||'';if(me.n!==n){S.pl.forEach(x=>{if((x.g||'ทั่วไป')===me.n)x.g=n});if(plG===me.n)plG=n;me.n=n}me.f=f}
+  else{P={id:plId(),n,f,at:Date.now()};S.pls.push(P);plG=n}
+  plF=null;await save();R();if(f&&f!==oldF)await plRefresh(P);return 1},
+ mrefresh:async i=>{await plRefresh(plNorm().find(x=>x.id==i));return 1},
+ mrefall:async()=>{let t=0;for(const P of plNorm().filter(x=>x.f))t+=await plRefresh(P,1);if(S)toast(t?`เพิ่ม ${t} เพลงใหม่`:'ไม่มีเพลงใหม่');return 1},
+ msel:()=>{plSel=plSel?null:new Set()},
+ mtog:i=>{i=+i;if(!plSel)return;plSel.has(i)?plSel.delete(i):plSel.add(i)},
+ mselall:()=>{const L=S.pl.filter(x=>(x.g||'ทั่วไป')===plG);plSel=plSel&&plSel.size===L.length?new Set():new Set(L.map(x=>x.id))},
+ mdelsel:()=>{if(!plSel||!plSel.size)return toast('ยังไม่ได้เลือกเพลง')||1;if(!confirm(`ลบ ${plSel.size} เพลงที่เลือก? (ไม่ลบไฟล์ใน Drive)`))return 1;const n=plSel.size;plRemove(plSel);plSel=null;toast(`ลบ ${n} เพลงแล้ว`)},
+ mdelpl:i=>{const P=plNorm().find(x=>x.id==i);if(!P)return;const ids=S.pl.filter(x=>(x.g||'ทั่วไป')===P.n).map(x=>x.id);if(!confirm(`ลบเพลย์ลิสต์ “${P.n}” พร้อมเพลงทั้ง ${ids.length} เพลง? (ไม่ลบไฟล์ใน Drive)`))return 1;plRemove(new Set(ids));S.pls=S.pls.filter(x=>x.id!==P.id);plG='ทั้งหมด';plSel=null;toast('ลบเพลย์ลิสต์แล้ว')},
  mplay:i=>{const L=S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG);plQueue(L,L.findIndex(x=>x.id==i),0);return 1},
  mall:()=>{plQueue(S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG),0,0);return 1},
  mshuf:()=>{plQueue(S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG),-1,1);return 1},
@@ -437,7 +471,7 @@ $('#view').addEventListener('change',async e=>{if(e.target.id==='auto'){S.set.au
   if(e.target.dataset.a==='ctog'){await run(e.target)}});
 async function run(el){const a=el.dataset.a;if(!A[a])return;if(duress&&['pin','dpin','push','pull','exp','imp'].includes(a))return;const skip=await A[a](el.dataset.i,el);await save();if(skip!==1)R()}
 $('#view').addEventListener('scroll',()=>$('#up').classList.toggle('show',$('#view').scrollTop>300),{passive:true});$('#up').onclick=()=>$('#view').scrollTo({top:0,behavior:'smooth'});
-document.addEventListener('click',e=>{const sc=e.target.closest('[data-sc]');if(sc){const t=document.getElementById(sc.dataset.sc);t&&t.scrollIntoView({behavior:'smooth',block:'start'});return}const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;aEd=null;ckEd=null;dEd=null;pEd=null;$('#q').value='';R();return}
+document.addEventListener('click',e=>{const sc=e.target.closest('[data-sc]');if(sc){const t=document.getElementById(sc.dataset.sc);t&&t.scrollIntoView({behavior:'smooth',block:'start'});return}const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;aEd=null;ckEd=null;dEd=null;pEd=null;plF=null;plSel=null;$('#q').value='';R();return}
   const el=e.target.closest('[data-a]');if(el&&el.type!=='checkbox'&&S)run(el)});
 
 document.addEventListener('mousedown',e=>{if(e.target.closest('.tb'))e.preventDefault()});
@@ -462,7 +496,7 @@ function plKill(){try{PLR.yt&&PLR.yt.destroy&&PLR.yt.destroy()}catch(e){}PLR.yt=
 function plAud(){const a=$('#dka');try{a.pause()}catch(e){}a.removeAttribute('src');try{a.load()}catch(e){}if(PLR.url){URL.revokeObjectURL(PLR.url);PLR.url=''}if('mediaSession'in navigator){try{navigator.mediaSession.metadata=null}catch(e){}}}
 function plStop(){PLR.n++;PLR.busy=0;PLR.soft=0;clearTimeout(PLR.slt);plKill();plAud();PLR.q=[];PLR.i=-1;PLR.ply=0;PLR.k='';PLR.err=0;PLR.cid=PLR.nid=null;PLR.nok=0;PLR.nx=-1;DRPG.clear();$('#dkld').style.display='none';$('#dock').classList.add('hidden');$('#dock').classList.remove('aud');dockUp()}
 function softLock(){ // กำลังเล่นเพลง MP3: ซ่อนแอปและขอ PIN แต่ไม่ตัดเพลง (ล็อกจริงเมื่อเพลงหยุด)
-  PLR.soft=1;if(AT)autoPush();RV.clear();EX.clear();buf='';editing=null;aEd=null;ckEd=null;dEd=null;pEd=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
+  PLR.soft=1;if(AT)autoPush();RV.clear();EX.clear();buf='';editing=null;aEd=null;ckEd=null;dEd=null;pEd=null;plF=null;plSel=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
 function plSoftChk(){if(!PLR.soft)return;clearTimeout(PLR.slt);PLR.slt=setTimeout(()=>{if(PLR.soft&&!PLR.ply&&!PLR.busy)lock()},4000)}
 function plState(e){const s=e.data;if(s===1){PLR.ply=1;PLR.err=0;plBtn()}else if(s===2){PLR.ply=0;plBtn()}else if(s===0){PLR.ply=0;plBtn();
     if(PLR.k==='ytl'){try{const p=e.target,l=p.getPlaylist();if(l&&p.getPlaylistIndex()<l.length-1)return}catch(x){}}plAdv(1,1)}}
@@ -513,6 +547,23 @@ async function plPlay(i){const n=++PLR.n,t=by('pl',PLR.q[i]);if(!t){plStop();ret
     $('#dkv').style.height=s.k==='sp'?(s.t==='track'||s.t==='episode'?'80px':'152px'):'120px';
     $('#dkv').innerHTML=`<iframe src="${src}" allow="autoplay; encrypted-media; clipboard-write" loading="eager"></iframe>`}
   dockUp()}
+/* ---------- เพลย์ลิสต์ = โฟลเดอร์ Drive: รีเฟรช / ลบหลายเพลง ---------- */
+const plId=()=>{let id=uid();while(S.pls.some(p=>p.id===id))id++;return id};
+function plNorm(){S.pls=S.pls||[];const have=new Set(S.pls.map(p=>p.n));for(const x of S.pl){const g=x.g||'ทั่วไป';if(!have.has(g)){have.add(g);S.pls.push({id:plId(),n:g,f:''})}}return S.pls}
+function plRemove(ids){const cur=PLR.q[PLR.i],had=PLR.q.some(x=>ids.has(x));S.pl=S.pl.filter(x=>!ids.has(x.id));if(cur!=null&&ids.has(cur))plStop();else if(had){PLR.q=PLR.q.filter(x=>!ids.has(x));PLR.i=PLR.q.indexOf(cur)}}
+async function plRefresh(P,quiet){if(!P)return 0;if(!P.f){toast('เพลย์ลิสต์นี้ยังไม่ได้ผูกโฟลเดอร์ — กดแก้ไขแล้ววางลิงก์โฟลเดอร์ Drive');return 0}
+  if(PLB.has(P.id))return 0;PLB.add(P.id);if(tab==='pl')R();
+  try{const r=await gas({},'action=audiolist&id='+P.f);if(!S)return 0;
+    if(!r.files)throw new Error('Apps Script ยังไม่รองรับ — Deploy Code.gs เวอร์ชัน 2.1.0 ขึ้นไปใหม่');
+    if(!r.files.length){toast('ไม่พบไฟล์เสียงในโฟลเดอร์นี้');return 0}
+    const mine=S.pl.filter(x=>(x.g||'ทั่วไป')===P.n),have=new Set(mine.map(x=>plSrc(x.u).id)),used=new Set(S.pl.map(x=>x.id));let n=0;
+    for(const f of r.files){if(have.has(f.id))continue;let id=uid();while(used.has(id))id++;used.add(id);S.pl.push({id,t:f.name.replace(/\.[A-Za-z0-9]{2,5}$/,''),u:'https://drive.google.com/file/d/'+f.id+'/view',g:P.n});n++}
+    P.up=Date.now();
+    const ids=new Set(r.files.map(f=>f.id)),gone=mine.filter(x=>{const q=plSrc(x.u);return q.k==='dr'&&!ids.has(q.id)}).length;
+    if(!quiet)toast((n?`เพิ่ม ${n} เพลงใหม่ (รวม ${mine.length+n} เพลง)`:'ไม่มีเพลงใหม่ — ครบตามโฟลเดอร์แล้ว')+(gone?` • มี ${gone} เพลงที่ไม่อยู่ในโฟลเดอร์แล้ว (ลบเองได้)`:''));
+    return n}
+  catch(e){toast(e.message);return 0}
+  finally{PLB.delete(P.id);if(S){await save();if(tab==='pl')R()}}}
 function plQueue(L,start,sh){PLR.q=L.map(x=>x.id);PLR.sh=sh?1:PLR.sh;if(!PLR.q.length)return;plPlay(start>=0?start:sh?Math.floor(Math.random()*PLR.q.length):0)}
 {const a=$('#dka');a.onplay=()=>{PLR.ply=1;PLR.err=0;plBtn()};a.onpause=()=>{PLR.ply=0;plBtn();plSoftChk()};a.onended=()=>plAdv(1,1);
   a.onerror=()=>{if(!a.getAttribute('src'))return;PLR.ply=0;plBtn();toast('เล่นไฟล์เพลงนี้ไม่ได้ (รูปแบบไฟล์ไม่รองรับหรือไฟล์เสีย)')};
@@ -520,7 +571,9 @@ function plQueue(L,start,sh){PLR.q=L.map(x=>x.id);PLR.sh=sh?1:PLR.sh;if(!PLR.q.l
     if(du&&'mediaSession'in navigator&&navigator.mediaSession.setPositionState){try{navigator.mediaSession.setPositionState({duration:du,position:Math.min(a.currentTime,du),playbackRate:a.playbackRate||1})}catch(e){}}};
   a.ontimeupdate=su;a.onloadedmetadata=su;
   $('#dksk').oninput=()=>{PLR.sk=1;const du=a.duration||0;if(du){a.currentTime=$('#dksk').value/1000*du;$('#dkct').textContent=tfmt(a.currentTime)}};$('#dksk').onchange=()=>{PLR.sk=0}}
-$('#dkx').onclick=plStop;$('#dkpv').onclick=()=>plAdv(-1);$('#dknx').onclick=()=>plAdv(1);
+$('#dkx').onclick=plStop;function dkMin(m){const d=$('#dock');PLR.min=m;d.classList.toggle('min',m);$('#dkmn').textContent=m?'▴':'▾';$('#dkmn').setAttribute('aria-label',m?'ขยายเพลเยอร์':'ย่อเพลเยอร์');try{localStorage.sk_dkmin=m?'1':''}catch(e){}dockUp()}
+$('#dkmn').onclick=()=>dkMin(!PLR.min);document.querySelector('.dki>div').onclick=()=>{if(PLR.min)dkMin(false)};try{if(localStorage.sk_dkmin)dkMin(true)}catch(e){}
+$('#dkpv').onclick=()=>plAdv(-1);$('#dknx').onclick=()=>plAdv(1);
 $('#dkp').onclick=()=>{try{if(PLR.k==='dr'){const a=$('#dka');a.paused?a.play():a.pause()}else PLR.yt&&(PLR.ply?PLR.yt.pauseVideo():PLR.yt.playVideo())}catch(e){}};
 $('#dksh').onclick=()=>{PLR.sh=PLR.sh?0:1;PLR.nx=-1;PLR.nid=null;plBtn();if(PLR.k==='dr'&&!PLR.busy)plPre()};$('#dkrp').onclick=()=>{PLR.rp=(PLR.rp+1)%3;plBtn()};
 /* ---------- Lightbox ---------- */
