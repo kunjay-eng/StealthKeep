@@ -73,6 +73,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 .sw.on::before{transform:translateX(100%);background:#EF4444}
 .sw span{position:relative;z-index:1;text-align:center;font-weight:700;font-size:.78rem;line-height:2.4rem;color:#94A3B8}
 .sw span:first-child{color:#04120d}.sw.on span:first-child{color:#94A3B8}.sw.on span:last-child{color:#fff}
+.sw.hm::before{background:#334155}.sw.hm span:first-child{color:#E2E8F0}.sw.hm.on::before{background:var(--acc)}.sw.hm.on span:first-child{color:#94A3B8}.sw.hm.on span:last-child{color:#04120d}
 .cover{width:3.6rem;height:3.6rem;border-radius:14px;overflow:hidden;flex:none;border:1.5px solid;background:#0F172A;display:grid;place-items:center;color:#475569;padding:2px}
 .cover img{width:100%;height:100%;object-fit:cover;border-radius:11px}
 .lbb{min-width:2.4rem;height:2.4rem;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(148,163,184,.25);color:#E2E8F0;background:rgba(30,41,59,.6)}
@@ -95,6 +96,8 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
   <p id="gmsg" class="text-sm text-slate-300">ใส่ PIN 6 หลัก</p>
   <div id="dots" class="flex gap-3"></div>
   <div id="pad" class="grid grid-cols-3 gap-4 w-64"></div>
+  <div id="rs" class="hidden flex flex-wrap justify-center gap-2 px-4 text-xs"><button id="rsf1" class="chip">♻️ กู้คืนจากไฟล์สำรอง</button><button id="rsg" class="chip">☁️ กู้คืนจาก Google Sheets</button><button id="rsc" class="chip hidden">ยกเลิกการกู้คืน</button></div>
+  <input type="file" id="rsf" accept=".json,application/json" class="hidden">
 </div>
 
 <!-- App -->
@@ -113,29 +116,32 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='1.4.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='1.7.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const b64=b=>{const u=new Uint8Array(b);let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t)},ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 async function key(pin,salt){const m=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},m,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
 async function seal(o){const iv=crypto.getRandomValues(new Uint8Array(12));return JSON.stringify({v:1,s:meta.salt,iv:b64(iv),d:b64(await crypto.subtle.encrypt({name:'AES-GCM',iv},K,enc.encode(JSON.stringify(o))))})}
 async function unseal(t,k){const o=JSON.parse(t);return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(o.iv)},k,ub(o.d))))}
-let meta=JSON.parse(localStorage.sk_meta||'null'),S,K,duress=false,tab='home',buf='',first=null,LB=null,idle,editing=null,deferred;
+let meta=JSON.parse(localStorage.sk_meta||'null'),S,K,duress=false,tab='home',buf='',first=null,LB=null,idle,editing=null,deferred,RS=null,AT=null,ABUSY=0,ABC=0,ABD=20000,ABL='';
+const IMG=new Map(),PEND=new Map(),MAXRAM=60,MAXDB=150; // IMG = blob URL ของรูปในหน่วยความจำ, PEND = รูปที่กำลังโหลด
 const DEF=()=>({check:[],notes:[],alb:[],docs:[],arch:[],cats:{},acats:{},set:{auto:60,api:'',token:'',arch:30}});
 const decoy=()=>({...DEF(),check:[{id:1,at:Date.now()-72e5,t:'ซื้อของเข้าบ้าน',lv:'N',d:0}],notes:[{id:1,t:'รายการซื้อ',h:'นม ไข่ ขนมปัง',pin:0,cat:'ทั่วไป'}],docs:[{id:1,t:'ใบเสร็จค่าน้ำ',u:'https://example.com'}]});
-const save=async()=>{if(!duress&&K)localStorage.sk_data=await seal(S)};
+const save=async()=>{if(!duress&&K){localStorage.sk_data=await seal(S);autoQ()}};
 const log=()=>{};
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(t._);t._=setTimeout(()=>t.classList.add('hidden'),2200)};
 const uid=()=>Date.now()+Math.floor(Math.random()*1e3);
 
 /* ---------- Gate ---------- */
 $('#pad').innerHTML=[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<i></i>':`<button class="key" data-k="${k}">${k}</button>`).join('');
-function gate(msg,err){$('#gmsg').textContent=msg;$('#dots').innerHTML='<i class="dot"></i>'.repeat(6);if(err){$('#dots').classList.add('shake');setTimeout(()=>$('#dots').classList.remove('shake'),400)}}
+function rsUi(){const r=$('#rs');if(!r)return;r.classList.toggle('hidden',!((!meta&&!first)||RS));$('#rsf1').classList.toggle('hidden',!!RS);$('#rsg').classList.toggle('hidden',!!RS);$('#rsc').classList.toggle('hidden',!RS)}
+function gate(msg,err){rsUi();$('#gmsg').textContent=msg;$('#dots').innerHTML='<i class="dot"></i>'.repeat(6);if(err){$('#dots').classList.add('shake');setTimeout(()=>$('#dots').classList.remove('shake'),400)}}
 const dots=()=>[...$('#dots').children].forEach((d,i)=>d.classList.toggle('f',i<buf.length));
 function press(k){if(k==='⌫')buf=buf.slice(0,-1);else if(buf.length<6)buf+=k;dots();if(buf.length===6){const p=buf;buf='';setTimeout(()=>{dots();submit(p)},120)}}
 $('#pad').onclick=e=>{const k=e.target.dataset.k;if(k!==undefined)press(k)};
 addEventListener('keydown',e=>{if($('#gate').classList.contains('hidden')){if(LB)lbKey(e);return}if(/^\d$/.test(e.key))press(e.key);if(e.key==='Backspace')press('⌫')});
 async function submit(p){
+  if(RS){try{const r=RS,k=await key(p,ub(r.salt)),n=await unseal(r.data,k);meta=r.dh?{salt:r.salt,dh:r.dh}:{salt:r.salt};localStorage.sk_meta=JSON.stringify(meta);localStorage.sk_data=r.data;if(r.at)localStorage.sk_sync=r.at;K=k;S=n;duress=false;RS=null;if(r.api&&!S.set.api){S.set.api=r.api;S.set.token=r.tok||''}await save();toast('กู้คืนข้อมูลแล้ว');return enter()}catch(e){return gate('PIN ไม่ถูกต้อง',1)}}
   if(!meta){
     if(!first){first=p;return gate('ยืนยัน PIN อีกครั้ง')}
     if(first!==p){first=null;return gate('PIN ไม่ตรงกัน ตั้งใหม่อีกครั้ง',1)}
@@ -144,8 +150,40 @@ async function submit(p){
   if(meta.dh&&await sha(p+meta.salt)===meta.dh){duress=true;S=decoy();return enter()}
   try{K=await key(p,ub(meta.salt));S=await unseal(localStorage.sk_data,K);duress=false;enter()}catch(e){gate('PIN ไม่ถูกต้อง',1)}
 }
+/* ---------- Backup / Restore ---------- */
+const pkey=async(pw,salt,it)=>crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:it,hash:'SHA-256'},await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']),{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+async function wrapBk(env,pw){const sl=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),it=300000;return{app:'StealthKeep',fmt:2,enc:'pw',at:env.at,it,s:b64(sl),iv:b64(iv),d:b64(await crypto.subtle.encrypt({name:'AES-GCM',iv},await pkey(pw,sl,it),enc.encode(JSON.stringify(env))))}}
+const mkEnv=()=>({app:'StealthKeep',fmt:2,at:Date.now(),meta:{salt:meta.salt,dh:meta.dh},data:localStorage.sk_data});
+/* รับไฟล์/ข้อความสำรองทุกรูปแบบ (v2, v1.x export, blob จากชีตรุ่นเก่า) → {data,salt,dh,at} หรือ null */
+async function openBk(text,pw0){try{let e=JSON.parse(text);
+  if(e.enc==='pw'){const dc=async w=>JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(e.iv)},await pkey(w,ub(e.s),e.it||300000),ub(e.d))));let r=null;if(pw0)try{r=await dc(pw0)}catch(x){}
+   if(!r){const pw=prompt('รหัสผ่านของไฟล์สำรองนี้');if(pw==null)return null;try{r=await dc(pw)}catch(x){toast('รหัสผ่านไม่ถูกต้อง');return null}}e=r}
+  const data=typeof e.data==='string'?e.data:(e.s&&e.iv&&e.d?JSON.stringify(e):null),v=data&&JSON.parse(data);
+  if(!v||typeof v.s!=='string'||!v.iv||!v.d)throw 0;
+  return{data,salt:v.s,dh:e.meta&&e.meta.dh||'',at:+e.at||0}}catch(x){toast('ไฟล์ไม่ถูกต้อง — ต้องเป็นไฟล์สำรองของ StealthKeep');return null}}
+function startRestore(p){RS=p;if(S)lock();buf='';gate('ใส่ PIN ของข้อมูลสำรองนี้');dots()}
+$('#rsf1').onclick=()=>$('#rsf').click();
+$('#rsf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const p=await openBk(await f.text());if(p)startRestore(p)};
+$('#rsc').onclick=()=>{RS=null;buf='';gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำหรับห้องนิรภัย');dots()};
+$('#rsg').onclick=async()=>{const u=(prompt('Apps Script Web App URL ที่เคยสำรองไว้')||'').trim();if(!u)return;const t=(prompt('Token')||'').trim();try{const r=await(await fetch(`${u}?token=${encodeURIComponent(t)}`)).json();if(!r.ok)return toast('Token ไม่ถูกต้องหรือสคริปต์ปฏิเสธ');if(!r.blob)return toast('ยังไม่มีข้อมูลสำรองบนชีตนี้');const p=await openBk(r.blob);if(p){p.api=u;p.tok=t;startRestore(p)}}catch(e){toast('เชื่อมต่อสคริปต์ไม่ได้')}};
+
+/* ---------- สำรองอัตโนมัติขึ้น Google Sheets (เข้ารหัสด้วยรหัสผ่านสำรองแยก) ---------- */
+const abOn=()=>S&&!duress&&S.set.ab&&S.set.api&&S.set.bkpw;
+const abSt=t=>{localStorage.sk_abs=t};
+function autoQ(){if(!abOn())return;clearTimeout(AT);AT=setTimeout(autoPush,ABD)}
+async function autoPush(){clearTimeout(AT);AT=null;if(!abOn()||localStorage.sk_data===ABL)return;
+  if(ABUSY){AT=setTimeout(autoPush,3000);return}
+  const{api,token,bkpw}=S.set;ABUSY=1; /* อ่านค่าก่อน await แรก เพราะอาจถูกเรียกตอนล็อก */
+  try{const g=await(await fetch(`${api}?token=${encodeURIComponent(token)}`)).json();if(!g.ok){abSt('⚠️ Token ไม่ถูกต้อง — สำรองอัตโนมัติไม่ทำงาน');return}
+    let ra=0;try{ra=+JSON.parse(g.blob).at||0}catch(x){}
+    if(ra>(+localStorage.sk_sync||0)){abSt('⚠️ บนชีตมีข้อมูลใหม่กว่า (จากเครื่องอื่น) — หยุดสำรองอัตโนมัติ กด “ดึงลง” ก่อน');if(!ABC){ABC=1;toast('บนชีตมีข้อมูลใหม่กว่า — กด “ดึงลง” ก่อนจึงจะสำรองต่อ')}return}
+    const env=mkEnv();env.at=Date.now();const r=await(await fetch(api,{method:'POST',body:JSON.stringify({token,blob:JSON.stringify(await wrapBk(env,bkpw))})})).json();
+    if(r.ok){localStorage.sk_sync=env.at;localStorage.sk_ab=env.at;ABL=env.data;ABC=0;abSt('')}else abSt('⚠️ ส่งไม่สำเร็จ: '+(r.error||''))}
+  catch(e){abSt('⚠️ เชื่อมต่อไม่ได้ — จะลองใหม่เมื่อมีการแก้ข้อมูลครั้งถัดไป')}finally{ABUSY=0}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&AT)autoPush()});
+
 function enter(){first=null;S.arch||=[];S.cats||={};S.acats||={};S.set.arch??=30;if(!duress&&S.set.arch>0){const lim=Date.now()-S.set.arch*864e5,old=S.check.filter(c=>c.d&&c.dn&&c.dn<lim);if(old.length){S.arch.unshift(...old);S.check=S.check.filter(c=>!old.includes(c));save()}}$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');const t=new URLSearchParams(location.search).get('tab');if(t&&TABS.some(x=>x[0]===t))tab=t;R();bump()}
-function lock(){S=K=null;RV.clear();EX.clear();ckF='todo';aEd=null;ckEd=null;dEd=null;buf='';editing=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
+function lock(){if(AT)autoPush();S=K=null;IMG.forEach(u=>URL.revokeObjectURL(u));IMG.clear();PEND.clear();RV.clear();EX.clear();ckF='todo';aEd=null;ckEd=null;dEd=null;buf='';editing=null;LB=null;$('#lb').classList.add('hidden');$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#q').value='';gate('ใส่ PIN 6 หลัก');dots()}
 function bump(){clearTimeout(idle);const a=S&&S.set.auto;if(a>0)idle=setTimeout(lock,a*1000)}
 ['click','touchstart','keydown'].forEach(ev=>addEventListener(ev,()=>S&&bump(),{passive:true}));
 $('#lock').onclick=lock;
@@ -155,7 +193,7 @@ gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำ�
 /* ---------- Views ---------- */
 const TABS=[['home','🏠','หน้าแรก'],['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร'],['set','⚙️','ตั้งค่า']];
 const PAL=['#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899','#3B82F6'],catC=c=>PAL[S.cats[c]??0];
-let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null;const RV=new Set(),EX=new Set();
+let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null;const RV=new Set(),EX=new Set(),HLP=new Set();
 const svg=(p,f,w=18)=>`<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="${f||'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const PIN='<path d="M12 17v5"/><path d="M9 3h6l-1 7 3 3v2H7v-2l3-3Z"/>',STAR='<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9Z"/>',EYE='<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
 const IC={copy:svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),edit:svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),trash:svg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),pin:svg(PIN),pinF:svg(PIN,'currentColor'),
@@ -163,7 +201,7 @@ const IC={copy:svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5
  star:svg(STAR),starF:svg(STAR,'currentColor'),eye:svg(EYE),eyeoff:svg(EYE+'<path d="M3 3l18 18"/>'),open:svg('<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>'),
  img:svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',0,24),refresh:svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',0,20),lock:svg('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',0,20)};
 const ab=(a,i,ic,c='')=>`<button class="${c}" data-a="${a}" data-i="${i}">${ic}</button>`,pill=(...b)=>`<div class="acts">${b.join('')}</div>`;
-const sec=(t,b,d)=>`<section class="glass p-5 space-y-4"><div><h2 class="text-white font-bold text-lg">${t}</h2>${d?`<p class="text-xs text-slate-400 mt-1">${d}</p>`:''}</div>${b}</section>`;
+const sec=(t,b,d,h)=>`<section class="glass p-5 space-y-4"><div><div class="flex items-center justify-between gap-3"><h2 class="text-white font-bold text-lg">${t}</h2>${h?`<button class="xb" data-a="hlp" data-c="${esc(t)}" aria-label="วิธีใช้" style="font-weight:700">${HLP.has(t)?'✕':'?'}</button>`:''}</div>${d?`<p class="text-xs text-slate-400 mt-1">${d}</p>`:''}</div>${h&&HLP.has(t)?`<div class="help text-sm text-slate-300 leading-relaxed" style="border:1px dashed rgba(16,185,129,.5);border-radius:14px;padding:.9rem 1rem">${h}</div>`:''}${b}</section>`;
 const secx=(t,a,b)=>`<section class="glass p-5 space-y-4"><div class="flex items-center justify-between"><h2 class="text-white font-bold text-lg">${t}</h2><button class="xb" data-a="${a}" aria-label="ปิด">${IC.x}</button></div>${b}</section>`;
 const fld=(l,h,hint)=>`<div class="space-y-2"><div class="text-sm text-slate-300">${l}</div>${h}${hint?`<p class="text-xs text-slate-500">${hint}</p>`:''}</div>`;
 const empty=t=>`<p class="text-sm text-slate-500 py-6 text-center">${t}</p>`;
@@ -173,6 +211,7 @@ const SW=on=>`<button type="button" id="sw" class="sw flex-1 ${on?'on':''}" data
 const fdt=t=>new Date(t).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
 const sd=t=>new Date(t).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const du=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?`${d}ว ${h}ชม`:h?`${h}ชม ${m%60}น`:m?`${m}น`:'<1น'};
+const lastBk=()=>Math.max(S.set.bk||0,+localStorage.sk_sync||0);
 const dur=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?`${d} วัน ${h} ชม.`:h?`${h} ชม. ${m%60} นาที`:m?`${m} นาที`:'ไม่ถึง 1 นาที'};
 const txt=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent};
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}};
@@ -186,10 +225,20 @@ const TB=`<div class="tb space-y-3"><div class="flex flex-wrap gap-2">${[['sz2',
 const noteCard=n=>{const cat=n.cat||'ทั่วไป',c=catC(cat),rv=RV.has(n.id),ex=EX.has(n.id),long=txt(n.h).length>180||(n.h.match(/<br|<div|<p/g)||[]).length>4;
  return card(c,`<div class="flex items-start gap-3"><div class="flex-1 min-w-0"><b class="text-white text-lg break-words block leading-snug">${esc(n.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}<span>${sd(n.up||n.at||n.id)}</span></div></div>${pill(ab('npin',n.id,n.pin?IC.pinF:IC.pin,n.pin?'on':'off'),ab('ncopy',n.id,IC.copy),ab('nedit',n.id,IC.edit),ab('ndel',n.id,IC.trash,'dng'))}</div>
 <div class="relative mt-3" data-a="show" data-i="${n.id}"><div class="nbody ${rv?'':'blur'} ${long&&!ex?'clamp':''}">${n.h}</div>${rv?'':'<span class="lockhint">แตะเพื่ออ่าน</span>'}</div>${long?`<div class="mt-2"><button class="chip" data-a="nexp" data-i="${n.id}">${ex?'ย่อ ▴':'อ่านต่อ ▾'}</button></div>`:''}`)};
+const HM=on=>fld('แสดงที่หน้าแรก',`<button type="button" id="hm" class="sw hm ${on?'on':''}" data-a="hmt"><span>ไม่แสดง</span><span>แสดงหน้าแรก</span></button>`,'เปิดแล้วรายการนี้จะแสดงเป็นการ์ดในหน้าแรก (แตะเพื่อสลับ)'),hmv=()=>$('#hm')&&$('#hm').classList.contains('on')?1:0;
+const hb=(a,k,i,ic,l)=>`<button data-a="${a}" data-k="${k}" data-i="${i}" aria-label="${l}">${ic}</button>`,hpill=(k,i,...x)=>pill(...x,hb('hedit',k,i,IC.edit,'แก้ไข'),hb('hoff',k,i,IC.x,'เอาออกจากหน้าแรก'));
+const hhead=(ic,t,k,n)=>`<div class="flex items-center justify-between gap-3 pt-2"><h2 class="text-white font-bold text-lg">${ic} ${t}</h2><button class="chip" data-go="${k}">ทั้งหมด ${n} ›</button></div>`;
+const hsec=(ic,t,k,L,f)=>`<div class="space-y-3">${hhead(ic,t,k,S[k].length)}${L.length?`<div class="space-y-3">${L.map(f).join('')}</div>`:`<div class="glass p-4 text-sm text-slate-500 text-center">ยังไม่มีรายการ — เปิด “แสดงที่หน้าแรก” ตอนเพิ่ม/แก้ไข</div>`}</div>`;
+const hCheck=c=>{const col=c.lv==='C'?'#EF4444':'#10B981',at=c.at||c.id;return card(col,`<div class="flex items-center gap-3"><input type="checkbox" ${c.d?'checked':''} data-a="ctog" data-i="${c.id}"><div class="flex-1 min-w-0"><div class="break-words whitespace-pre-wrap leading-snug ${c.d?'done':'text-white'}">${esc(c.t)}</div><div class="meta mt-1.5">${c.lv==='C'?tg('CRITICAL',col):tg('NORMAL',col)}<span>${c.d?'✓ '+sd(c.dn||at):sd(at)+' · ค้าง '+du(Date.now()-at)}</span></div></div>${hpill('check',c.id)}</div>`)};
+const hNote=n=>{const cat=n.cat||'ทั่วไป',c=catC(cat),rv=RV.has(n.id),ex=EX.has(n.id),long=txt(n.h).length>180||(n.h.match(/<br|<div|<p/g)||[]).length>4;return card(c,`<div class="flex items-start gap-3"><div class="flex-1 min-w-0"><b class="text-white text-lg break-words block leading-snug">${esc(n.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}<span>${sd(n.up||n.at||n.id)}</span></div></div>${hpill('notes',n.id)}</div><div class="relative mt-3" data-a="show" data-i="${n.id}"><div class="nbody ${rv?'':'blur'} ${long&&!ex?'clamp':''}">${n.h}</div>${rv?'':'<span class="lockhint">แตะเพื่ออ่าน</span>'}</div>${long?`<div class="mt-2"><button class="chip" data-a="nexp" data-i="${n.id}">${ex?'ย่อ ▴':'อ่านต่อ ▾'}</button></div>`:''}`)};
+const hAlb=a=>{const cat=a.cat||'ทั่วไป',c=PAL[S.acats[cat]??0];return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${hpill('alb',a.id)}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id)};
+const hDoc=d=>{const[t,c]=docType(d.u);return card(c,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(t,c)}<span class="truncate">${esc(host(d.u))}</span></div></div>${hpill('docs',d.id,ab('dcopy',d.id,IC.copy),`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`)}</div>`)};
+const hm=k=>S[k].filter(x=>x.hm);
 const V={
-home:()=>`<div class="glass p-5 flex items-center gap-4" style="box-shadow:0 0 24px rgba(16,185,129,.18)"><span class="text-4xl">🛡️</span><div><b class="text-white text-lg">${duress?'ระบบพร้อมใช้งาน':'AES-256 SECURE'}</b><p class="text-xs">ข้อมูลเข้ารหัสในเครื่อง • v${VER}</p></div></div>
-<div class="grid grid-cols-2 gap-4">${[['check','✅','ค้างในเช็คลิสต์',S.check.filter(c=>!c.d).length],['notes','📝','โน้ตลับ',S.notes.length],['alb','🖼️','อัลบั้ม',S.alb.length],['docs','📄','เอกสาร & ลิงก์',S.docs.length]].map(([k,i,n,v])=>`<a href="#" data-go="${k}" class="glass p-4 block"><div class="text-3xl text-white font-bold">${v}</div><div class="text-sm mt-1">${i} ${n}</div></a>`).join('')}</div>`,
-check:()=>{if(ckEd!==null){const c=ckEd?by('check',ckEd):{t:'',lv:'N'};if(ckEd&&!c)ckEd=null;else return secx(ckEd?'แก้ไขภารกิจ':'ภารกิจใหม่','ccancel',fld('ภารกิจ',ckEd?`<textarea id="cet" rows="4">${esc(c.t)}</textarea>`:'<input id="cet" placeholder="พิมพ์ภารกิจ…" enterkeyhint="done" autocomplete="off">')+fld('ระดับความสำคัญ',SW(c.lv==='C'),'แตะเพื่อสลับ NORMAL / CRITICAL')+(ckEd?`<p class="text-xs text-slate-400">เพิ่มเมื่อ ${fdt(c.at||c.id)} • ค้างมา ${dur(Date.now()-(c.at||c.id))}${c.up?`<br>แก้ไขล่าสุด ${fdt(c.up)}`:''}</p>`:'')+`<button class="btn w-full" data-a="csave">💾 บันทึก</button>`)}
+home:()=>`${!duress&&S.check.length+S.notes.length+S.alb.length+S.docs.length>0&&(!lastBk()||Date.now()-lastBk()>6048e5)?`<div class="glass p-4 flex items-center gap-3" style="border-color:rgba(245,158,11,.5)"><span class="text-2xl">⚠️</span><div class="flex-1 min-w-0 text-sm"><b class="text-white">${lastBk()?'ไม่ได้สำรองมา '+dur(Date.now()-lastBk()):'ยังไม่เคยสำรองข้อมูล'}</b><p class="text-xs">ถ้าเครื่องหายหรือล้างเครื่อง จะกู้ข้อมูลไม่ได้</p></div><button class="chip" data-go="set">สำรองเลย</button></div>`:''}<div class="glass p-5 flex items-center gap-4" style="box-shadow:0 0 24px rgba(16,185,129,.18)"><span class="text-4xl">🛡️</span><div><b class="text-white text-lg">${duress?'ระบบพร้อมใช้งาน':'AES-256 SECURE'}</b><p class="text-xs">ข้อมูลเข้ารหัสในเครื่อง • v${VER}</p></div></div>
+<div class="grid grid-cols-2 gap-4">${[['check','✅','ค้างในเช็คลิสต์',S.check.filter(c=>!c.d).length],['notes','📝','โน้ตลับ',S.notes.length],['alb','🖼️','อัลบั้ม',S.alb.length],['docs','📄','เอกสาร & ลิงก์',S.docs.length]].map(([k,i,n,v])=>`<a href="#" data-go="${k}" class="glass p-4 block"><div class="text-3xl text-white font-bold">${v}</div><div class="text-sm mt-1">${i} ${n}</div></a>`).join('')}</div>
+${hsec('✅','เช็คลิสต์','check',hm('check'),hCheck)}${hsec('📝','โน้ตลับ','notes',hm('notes'),hNote)}${hsec('🖼️','อัลบั้ม','alb',hm('alb'),hAlb)}${hsec('📄','เอกสาร & ลิงก์','docs',hm('docs'),hDoc)}`,
+check:()=>{if(ckEd!==null){const c=ckEd?by('check',ckEd):{t:'',lv:'N'};if(ckEd&&!c)ckEd=null;else return secx(ckEd?'แก้ไขภารกิจ':'ภารกิจใหม่','ccancel',fld('ภารกิจ',ckEd?`<textarea id="cet" rows="4">${esc(c.t)}</textarea>`:'<input id="cet" placeholder="พิมพ์ภารกิจ…" enterkeyhint="done" autocomplete="off">')+fld('ระดับความสำคัญ',SW(c.lv==='C'),'แตะเพื่อสลับ NORMAL / CRITICAL')+HM(c.hm)+(ckEd?`<p class="text-xs text-slate-400">เพิ่มเมื่อ ${fdt(c.at||c.id)} • ค้างมา ${dur(Date.now()-(c.at||c.id))}${c.up?`<br>แก้ไขล่าสุด ${fdt(c.up)}`:''}</p>`:'')+`<button class="btn w-full" data-a="csave">💾 บันทึก</button>`)}
  const T=S.check.filter(c=>!c.d),D=S.check.filter(c=>c.d),L=ckF==='todo'?T:ckF==='done'?D:S.arch,sh=L.slice(0,ckN);
  return `<button class="btn w-full" data-a="cnew">+ ภารกิจใหม่</button>`
  +`<div class="chips">${chip(ckF==='todo','cf','todo','ค้างอยู่ '+T.length)}${chip(ckF==='done','cf','done','เสร็จแล้ว '+D.length)}${chip(ckF==='arch','cf','arch','คลัง '+S.arch.length)}</div>`
@@ -200,7 +249,7 @@ notes:()=>{if(editing!==null){const n=S.notes.find(x=>x.id===editing)||{},cats=O
  +(cats.length?`<div class="flex flex-wrap gap-2">${cats.map(c=>`<button type="button" class="chip" data-a="pickcat" data-c="${esc(c)}" style="border-color:${catC(c)}">${esc(c)}</button>`).join('')}</div>`:'')
  +fld('หัวข้อ',`<input id="nt" placeholder="ไม่บังคับ" value="${esc(n.t||'')}">`)
  +fld('เนื้อหา *','ลากคลุมข้อความ แล้วกดปุ่มด้านล่างเพื่อจัดขนาด / ความหนา / ไฮไลต์สี')
- +TB+`<div id="nh" class="ed" contenteditable data-ph="พิมพ์หรือวางเนื้อหาที่นี่ (คัดลอกมาจากที่อื่นก็ได้)">${n.h||''}</div><button class="btn w-full" data-a="nsave">💾 บันทึก</button>`)}
+ +TB+`<div id="nh" class="ed" contenteditable data-ph="พิมพ์หรือวางเนื้อหาที่นี่ (คัดลอกมาจากที่อื่นก็ได้)">${n.h||''}</div>`+HM(n.hm)+`<button class="btn w-full" data-a="nsave">💾 บันทึก</button>`)}
  const cs=[...new Set(S.notes.map(n=>n.cat||'ทั่วไป'))],cnt=c=>S.notes.filter(n=>(n.cat||'ทั่วไป')===c).length,L=S.notes.filter(n=>nCat==='ทั้งหมด'||(n.cat||'ทั่วไป')===nCat);
  return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+(cs.length?`<div class="chips">${chip(nCat==='ทั้งหมด','ncat','ทั้งหมด','ทั้งหมด '+S.notes.length)}${cs.map(c=>`<button class="chip" data-a="ncat" data-c="${esc(c)}" style="border-color:${catC(c)};${nCat===c?`background:${catC(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${cnt(c)}</button>`).join('')}</div>`:'')+`<div class="space-y-3">${L.map(noteCard).join('')||empty('ยังไม่มีโน้ต')}</div>`},
 alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
@@ -209,21 +258,22 @@ alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
   +fld('หมวดหมู่',`<input id="ac" placeholder="เช่น ครอบครัว, งาน, บัตรประชาชน" value="${esc(a.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
   +(acs.length?`<div class="flex flex-wrap gap-2">${acs.map(c=>`<button type="button" class="chip" data-a="pickacat" data-c="${esc(c)}" style="border-color:${ac(c)}">${esc(c)}</button>`).join('')}</div>`:'')
   +fld('ลิงก์โฟลเดอร์ Google Drive',`<input id="au" inputmode="url" placeholder="https://drive.google.com/drive/folders/…" value="${a.f?'https://drive.google.com/drive/folders/'+esc(a.f):''}">`)
-  +`<details ${a.api?'open':''}><summary class="text-sm text-slate-300 py-2">รูปอยู่ในบัญชี Google อื่น? (ไม่บังคับ)</summary><p class="text-xs text-slate-500 mb-3">ใส่ URL/Token ของสคริปต์ที่ Deploy จากบัญชีเจ้าของรูป ถ้าเว้นว่างจะใช้ค่าในหน้าตั้งค่า</p><div class="space-y-4">`+fld('Apps Script URL ของบัญชีนั้น',`<input id="aapi" class="secret" autocomplete="off" inputmode="url" value="${esc(a.api||'')}">`)+fld('Token ของสคริปต์นั้น',`<input id="atok" class="secret" autocomplete="off" value="${esc(a.tok||'')}">`)+`</div></details><button class="btn w-full" data-a="asave">💾 บันทึก</button>`
+  +`<details ${a.api?'open':''}><summary class="text-sm text-slate-300 py-2">รูปอยู่ในบัญชี Google อื่น? (ไม่บังคับ)</summary><p class="text-xs text-slate-500 mb-3">ใส่ URL/Token ของสคริปต์ที่ Deploy จากบัญชีเจ้าของรูป ถ้าเว้นว่างจะใช้ค่าในหน้าตั้งค่า</p><div class="space-y-4">`+fld('Apps Script URL ของบัญชีนั้น',`<input id="aapi" class="secret" autocomplete="off" inputmode="url" value="${esc(a.api||'')}">`)+fld('Token ของสคริปต์นั้น',`<input id="atok" class="secret" autocomplete="off" value="${esc(a.tok||'')}">`)+`</div></details>`+HM(a.hm)+`<button class="btn w-full" data-a="asave">💾 บันทึก</button>`
   +(a.id?`<button class="btn2 w-full dngb" data-a="adel" data-i="${a.id}">ลบอัลบั้มนี้</button>`:''))}
  const cs=[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))],L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
  return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`+(cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}</div>`:'')
   +`<div class="space-y-3">${L.map(a=>{const cat=a.cat||'ทั่วไป',c=ac(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id)}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
-docs:()=>{if(dEd!==null){const d=dEd?S.docs.find(x=>x.id===dEd)||{}:{};return secx(dEd?'แก้ไขลิงก์':'เพิ่มเอกสาร & ลิงก์','dclose',fld('ชื่อ',`<input id="dt" placeholder="เช่น สัญญาเช่า" value="${esc(d.t||'')}">`)+fld('ลิงก์',`<input id="du" inputmode="url" placeholder="Google Drive / TikTok / Facebook" value="${esc(d.u||'')}">`,'วางลิงก์เอกสาร Drive, คลิป TikTok หรือ Facebook Reels')+`<button class="btn w-full" data-a="dsave">💾 บันทึก</button>`)}
+docs:()=>{if(dEd!==null){const d=dEd?S.docs.find(x=>x.id===dEd)||{}:{};return secx(dEd?'แก้ไขลิงก์':'เพิ่มเอกสาร & ลิงก์','dclose',fld('ชื่อ',`<input id="dt" placeholder="เช่น สัญญาเช่า" value="${esc(d.t||'')}">`)+fld('ลิงก์',`<input id="du" inputmode="url" placeholder="Google Drive / TikTok / Facebook" value="${esc(d.u||'')}">`,'วางลิงก์เอกสาร Drive, คลิป TikTok หรือ Facebook Reels')+HM(d.hm)+`<button class="btn w-full" data-a="dsave">💾 บันทึก</button>`)}
  return `<button class="btn w-full" data-a="dnew">+ เพิ่มลิงก์</button>`+`<div class="space-y-3">${S.docs.map(d=>{const[t,c]=docType(d.u);return card(c,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(t,c)}<span class="truncate">${esc(host(d.u))}</span></div></div>${pill(ab('dcopy',d.id,IC.copy),ab('dedit',d.id,IC.edit),`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`,ab('ddel',d.id,IC.trash,'dng'))}</div>`)}).join('')||empty('ยังไม่มีลิงก์')}</div>`},
 set:()=>{const row=(l,a,d)=>`<div class="space-y-2"><button class="btn2 w-full" data-a="${a}">${l}</button><p class="text-xs text-slate-500">${d}</p></div>`;
  return sec('ความปลอดภัย',row('เปลี่ยน Master PIN','pin','เปลี่ยนรหัส 6 หลักที่ใช้ปลดล็อกและเข้ารหัสข้อมูล (Duress PIN จะถูกรีเซ็ต)')+row('ตั้ง Duress PIN (หน้าจอหลอก)','dpin','รหัสสำรองกรณีถูกบังคับให้เปิด ใส่แล้วจะเห็นหน้าจอปลอมที่ไม่มีข้อมูลจริง')
   +fld('ล็อกอัตโนมัติเมื่อไม่ใช้งาน',`<select id="auto">${[[0,'ปิด'],[30,'30 วินาที'],[60,'1 นาที'],[300,'5 นาที'],[600,'10 นาที'],[900,'15 นาที']].map(([v,l])=>`<option value="${v}" ${S.set.auto==v?'selected':''}>${l}</option>`).join('')}</select>`,'ล็อกหน้าจอและล้างข้อมูลออกจากหน่วยความจำเมื่อไม่ได้แตะหน้าจอครบเวลาที่เลือก')
-  +row('ล้างเซสชันฉุกเฉิน','wipe','ล็อกทันที ต้องใส่ PIN ใหม่เพื่อเข้าอีกครั้ง (ข้อมูลที่บันทึกไว้ไม่ถูกลบ)'),'ควบคุมการเข้าถึงห้องนิรภัยของคุณ')+
- sec('จัดการเช็คลิสต์',fld('ย้ายรายการที่เสร็จเข้าคลังอัตโนมัติ',`<select id="aarch">${[[0,'ปิด'],[7,'หลัง 7 วัน'],[30,'หลัง 30 วัน'],[90,'หลัง 90 วัน']].map(([v,l])=>`<option value="${v}" ${S.set.arch==v?'selected':''}>${l}</option>`).join('')}</select>`,'รายการที่เสร็จแล้วจะถูกเก็บเข้า “คลัง” เมื่อครบเวลา เพื่อไม่ให้หน้าเช็คลิสต์ยาวเกินไป กู้คืนหรือลบถาวรได้จากแท็บ “คลัง”'))+
- sec('Google Sheets Backend',`<p class="text-sm">${S.set.api?'🟢 ตั้งค่าแล้ว':'⚪ ยังไม่เชื่อมต่อ'}</p>`+fld('Apps Script Web App URL',`<input id="api" class="secret" inputmode="url" autocomplete="off" value="${esc(S.set.api)}">`,'ลิงก์ Web app ที่ได้จากการ Deploy สคริปต์ (ใช้สำรองข้อมูลและโหลดรูปอัลบั้ม) — ข้อความจะเบลอ แตะเพื่อดู')+fld('Token',`<input id="tok" class="secret" autocomplete="off" value="${esc(S.set.token)}">`,'รหัสลับที่ตั้งไว้ในสคริปต์ ต้องตรงกันทั้งสองฝั่ง')+`<div class="grid grid-cols-3 gap-3"><button class="btn2" data-a="apisave">บันทึก</button><button class="btn2" data-a="push">ส่งขึ้น</button><button class="btn2" data-a="pull">ดึงลง</button></div><p class="text-xs text-slate-500">บันทึก = เก็บ URL/Token • ส่งขึ้น = อัปโหลดข้อมูลที่เข้ารหัสแล้วขึ้นชีต • ดึงลง = ดึงกลับมาแทนข้อมูลในเครื่อง (ต้องเป็น PIN เดิม)</p>`,'เชื่อมแอปกับ Google Apps Script ของคุณ')+
- sec('สำรองข้อมูล',`<div class="grid grid-cols-2 gap-3"><button class="btn2" data-a="exp">ส่งออก JSON</button><button class="btn2" data-a="imp">นำเข้า</button></div><p class="text-xs text-slate-500">ส่งออก = ดาวน์โหลดไฟล์ที่เข้ารหัสไว้ เก็บเผื่อเครื่องหาย • นำเข้า = โหลดไฟล์กลับ (ต้องใช้ PIN เดียวกัน)</p><input type="file" id="impf" accept=".json" class="hidden">`,'เก็บสำเนาข้อมูลทั้งหมดไว้นอกแอป')+
- sec('ติดตั้งแอป',`<button class="btn w-full" data-a="install">เพิ่มไอคอนลงหน้าจอหลัก</button><p class="text-xs text-slate-500">Android: กดปุ่มนี้ • iPhone: Safari → ปุ่มแชร์ → “เพิ่มไปยังหน้าจอโฮม”</p>`,'เปิดแอปจากหน้าจอหลักได้เหมือนแอปทั่วไป และใช้งานออฟไลน์ได้')}
+  +row('ล้างเซสชันฉุกเฉิน','wipe','ล็อกทันที ต้องใส่ PIN ใหม่เพื่อเข้าอีกครั้ง (ข้อมูลที่บันทึกไว้ไม่ถูกลบ)'),'ควบคุมการเข้าถึงห้องนิรภัยของคุณ',`<b class="text-white">วิธีใช้</b><ul class="list-disc pl-5 space-y-1.5 mt-2"><li><b>เปลี่ยน Master PIN</b> — ใส่ PIN 6 หลักใหม่ ข้อมูลทั้งหมดจะเข้ารหัสด้วย PIN ใหม่ (Duress PIN ที่เคยตั้งต้องตั้งใหม่) ถ้าเคยซิงก์ขึ้นชีตไว้ ให้กด “ส่งขึ้น” ใหม่ด้วย</li><li><b>Duress PIN</b> — PIN สำรองที่เปิดแล้วเห็นหน้าจอปลอม (ไม่มีข้อมูลจริง และไม่บันทึกอะไร) ใช้เมื่อถูกบังคับให้เปิด ต้องไม่ซ้ำ PIN จริง</li><li><b>ล็อกอัตโนมัติ</b> — ล็อกเมื่อไม่แตะหน้าจอครบเวลาที่เลือก แนะนำ 1–5 นาที</li><li><b>ล้างเซสชันฉุกเฉิน</b> — ล็อกทันที ข้อมูลไม่ถูกลบ ต้องใส่ PIN ใหม่</li></ul><p class="mt-2 text-amber-300">⚠️ ลืม PIN = กู้ข้อมูลไม่ได้ สำรองไฟล์ JSON ไว้เสมอ</p>`)+
+  sec('แคชรูปอัลบั้ม',row('ล้างแคชรูปอัลบั้ม','imgclr','ลบรูปที่แคชไว้ในเครื่องทั้งหมด (ไม่ลบรูปใน Drive) — เปิดอัลบั้มครั้งถัดไปจะโหลดใหม่'),'เก็บรูปที่เคยเปิดไว้ในเครื่องแบบเข้ารหัส เพื่อให้เปิดอัลบั้มซ้ำได้ทันที (สูงสุด 150 รูป)',`<b class="text-white">วิธีใช้</b><ul class="list-disc pl-5 space-y-1.5 mt-2"><li>แอปเก็บรูปที่เคยเปิด (สูงสุด 150 รูป) ไว้ในเครื่อง เพื่อให้เปิดอัลบั้มซ้ำได้ทันที</li><li>รูปในแคชเข้ารหัสด้วยคีย์จาก PIN อ่านได้เฉพาะตอนปลดล็อก และแคชในหน่วยความจำจะหายเมื่อล็อก</li><li>กด <b>ล้างแคชรูปอัลบั้ม</b> เมื่ออยากคืนพื้นที่ หรือรูปใน Drive ถูกแก้/แทนที่แล้วแอปยังแสดงรูปเก่า — รูปใน Drive ไม่ถูกลบ</li><li>หลังล้าง การเปิดอัลบั้มครั้งถัดไปจะช้ากว่าปกติหนึ่งรอบ เพราะต้องโหลดใหม่</li></ul>`)+
+ sec('จัดการเช็คลิสต์',fld('ย้ายรายการที่เสร็จเข้าคลังอัตโนมัติ',`<select id="aarch">${[[0,'ปิด'],[7,'หลัง 7 วัน'],[30,'หลัง 30 วัน'],[90,'หลัง 90 วัน']].map(([v,l])=>`<option value="${v}" ${S.set.arch==v?'selected':''}>${l}</option>`).join('')}</select>`,'รายการที่เสร็จแล้วจะถูกเก็บเข้า “คลัง” เมื่อครบเวลา เพื่อไม่ให้หน้าเช็คลิสต์ยาวเกินไป กู้คืนหรือลบถาวรได้จากแท็บ “คลัง”'),'ตั้งค่าการเก็บเข้าคลังของรายการที่เสร็จแล้ว',`<b class="text-white">วิธีใช้</b><ul class="list-disc pl-5 space-y-1.5 mt-2"><li>เลือกว่ารายการที่ติ๊กเสร็จแล้วจะย้ายเข้า “คลัง” อัตโนมัติเมื่อผ่านไปกี่วัน (หรือปิด)</li><li>รายการในคลังกู้คืนหรือลบถาวรได้จากแท็บเช็คลิสต์ → “คลัง”</li><li>เปลี่ยนค่าแล้วบันทึกทันที ไม่ต้องกดปุ่มอื่น</li></ul>`)+
+ sec('Google Sheets Backend',`<p class="text-sm">${S.set.api?'🟢 ตั้งค่าแล้ว':'⚪ ยังไม่เชื่อมต่อ'}</p>`+fld('Apps Script Web App URL',`<input id="api" class="secret" inputmode="url" autocomplete="off" value="${esc(S.set.api)}">`,'ลิงก์ Web app ที่ได้จากการ Deploy สคริปต์ (ใช้สำรองข้อมูลและโหลดรูปอัลบั้ม) — ข้อความจะเบลอ แตะเพื่อดู')+fld('Token',`<input id="tok" class="secret" autocomplete="off" value="${esc(S.set.token)}">`,'รหัสลับที่ตั้งไว้ในสคริปต์ ต้องตรงกันทั้งสองฝั่ง')+`<div class="grid grid-cols-3 gap-3"><button class="btn2" data-a="apisave">บันทึก</button><button class="btn2" data-a="push">ส่งขึ้น</button><button class="btn2" data-a="pull">ดึงลง</button></div><p class="text-xs text-slate-500">บันทึก = เก็บ URL/Token • ส่งขึ้น = อัปโหลดข้อมูลที่เข้ารหัสแล้วขึ้นชีต (เตือนถ้าบนชีตใหม่กว่า) • ดึงลง = ดึงกลับมาแทนข้อมูลในเครื่อง</p>`+fld('รหัสผ่านสำรอง (แยกจาก PIN)',`<button class="btn2 w-full" data-a="bkpw">${S.set.bkpw?'🔑 ตั้งแล้ว — แตะเพื่อเปลี่ยน/ลบ':'🔑 ตั้งรหัสผ่านสำรอง'}</button>`,'ใช้เข้ารหัสข้อมูลที่ส่งขึ้นชีตอีกชั้น เพื่อไม่ให้ถูกเดา PIN 6 หลักจากชีตได้ ต้องใส่ตอนกู้คืนเครื่องใหม่')+fld('สำรองอัตโนมัติขึ้นชีต',`<button type="button" class="sw hm ${S.set.ab?'on':''}" data-a="abt"><span>ปิด</span><span>เปิด</span></button>`,'เมื่อแก้ข้อมูล แอปจะส่งขึ้นชีตให้เองหลังหยุดแก้ราว 20 วินาที และตอนล็อก/ปิดหน้าจอ (ทำงานเฉพาะตอนเปิดแอปอยู่)')+`${S.set.ab?`<p class="text-xs ${localStorage.sk_abs?'text-amber-300':'text-slate-400'}">${esc(localStorage.sk_abs||(+localStorage.sk_ab?'🟢 ส่งอัตโนมัติล่าสุด '+fdt(+localStorage.sk_ab):'รอการส่งครั้งแรก'))}</p>`:''}`,'เชื่อมแอปกับ Google Apps Script ของคุณ',`<b class="text-white">วิธีใช้</b><ol class="list-decimal pl-5 space-y-1.5 mt-2"><li>วางโค้ด <code>Code.gs</code> ใน Apps Script ตั้ง <code>TOKEN</code> แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone) — ทุกครั้งที่แก้โค้ดต้อง Deploy เป็น New version</li><li>ใส่ URL และ Token ในช่องด้านล่าง กด <b>บันทึก</b></li><li><b>ส่งขึ้น</b> = อัปโหลดข้อมูลที่เข้ารหัสแล้วไปเก็บในชีต (ถ้าบนชีตมีข้อมูลใหม่กว่าจากเครื่องอื่นจะถามก่อนเขียนทับ), <b>ดึงลง</b> = นำข้อมูลจากชีตมาแทนข้อมูลในเครื่อง</li><li><b>รหัสผ่านสำรอง</b> — เข้ารหัสข้อมูลบนชีตอีกชั้น (แนะนำมาก) ต้องตั้งก่อนเปิดสำรองอัตโนมัติ เก็บไว้ในห้องนิรภัยของคุณ จึงไม่ต้องพิมพ์ทุกครั้ง</li><li><b>สำรองอัตโนมัติ</b> — ส่งขึ้นชีตเองหลังแก้ข้อมูล ถ้าบนชีตมีข้อมูลใหม่กว่าจากเครื่องอื่นจะหยุดและแจ้งเตือน (ไม่เขียนทับ) ให้กด “ดึงลง” ก่อน</li><li>เครื่องใหม่/ล้างเครื่อง: ที่หน้าตั้ง PIN กด “กู้คืนจาก Google Sheets” แล้วใส่ URL + Token → รหัสผ่านสำรอง → PIN เดิม <b>(จดรหัสผ่านสำรองไว้ ลืม = กู้ไม่ได้)</b></li></ol><p class="mt-2">ค่านี้ใช้โหลดรูปอัลบั้มด้วย ถ้ารูปอยู่อีกบัญชี ให้ใส่ URL/Token แยกในหน้าแก้ไขอัลบั้ม</p>`)+
+  sec('สำรองข้อมูล & กู้คืน',`<p class="text-sm">${lastBk()?'🟢 สำรองล่าสุด '+fdt(lastBk())+' (ผ่านมา '+dur(Date.now()-lastBk())+')':'🔴 ยังไม่เคยสำรองข้อมูล'}</p><div class="grid grid-cols-2 gap-3"><button class="btn2" data-a="exp">⬇️ สำรองเป็นไฟล์</button><button class="btn2" data-a="imp">♻️ กู้คืนจากไฟล์</button></div><p class="text-xs text-slate-500">สำรอง = ดาวน์โหลดไฟล์ที่เข้ารหัสไว้ (ตั้งรหัสผ่านไฟล์ได้) • กู้คืน = โหลดไฟล์กลับ แทนที่ข้อมูลในเครื่องนี้ ใช้ได้แม้เป็นเครื่องใหม่หรือ PIN ต่างกัน</p><input type="file" id="impf" accept=".json,application/json" class="hidden">`,'เก็บสำเนาข้อมูลทั้งหมดไว้นอกแอป เผื่อเครื่องหายหรือล้างเครื่อง',`<b class="text-white">ป้องกันข้อมูลหายเมื่อเครื่องเสีย/ล้างเครื่อง</b><ol class="list-decimal pl-5 space-y-1.5 mt-2"><li><b>สำรองเป็นไฟล์</b> — แนะนำให้ตั้งรหัสผ่านไฟล์ (8 ตัวขึ้นไป) แล้วเก็บไว้ที่ Google Drive / อีเมลตัวเอง / คอมพิวเตอร์</li><li>หรือใช้ <b>Google Sheets</b> (การ์ดด้านล่าง) กด “ส่งขึ้น” เป็นระยะ</li><li><b>เมื่อล้างเครื่อง/ซื้อเครื่องใหม่:</b> เปิดแอป → หน้าตั้ง PIN จะมีปุ่ม “♻️ กู้คืนจากไฟล์สำรอง” หรือ “☁️ กู้คืนจาก Google Sheets” → ใส่ PIN ของข้อมูลสำรอง</li></ol><b class="text-white block mt-3">ใช้หลายเครื่อง</b><ul class="list-disc pl-5 space-y-1.5 mt-2"><li>ทำได้ โดยกู้คืนข้อมูลชุดเดียวกันลงแต่ละเครื่อง แล้วใช้ “ส่งขึ้น / ดึงลง” ซิงก์ด้วยตนเอง (ไม่ซิงก์อัตโนมัติ)</li><li>ก่อนแก้ไขบนอีกเครื่องให้กด “ดึงลง” ก่อน และกด “ส่งขึ้น” หลังแก้เสร็จ แอปจะเตือนถ้าบนชีตมีข้อมูลที่ใหม่กว่า</li><li>ถ้าแก้พร้อมกันสองเครื่อง ฝั่งที่ส่งขึ้นทีหลังจะทับอีกฝั่ง (ไม่รวมข้อมูลให้)</li><li>เปลี่ยน PIN บนเครื่องหนึ่ง เครื่องอื่นต้องกู้คืนใหม่</li></ul>`)+
+ sec('ติดตั้งแอป',`<button class="btn w-full" data-a="install">เพิ่มไอคอนลงหน้าจอหลัก</button><p class="text-xs text-slate-500">Android: กดปุ่มนี้ • iPhone: Safari → ปุ่มแชร์ → “เพิ่มไปยังหน้าจอโฮม”</p>`,'เปิดแอปจากหน้าจอหลักได้เหมือนแอปทั่วไป และใช้งานออฟไลน์ได้',`<b class="text-white">วิธีใช้</b><ul class="list-disc pl-5 space-y-1.5 mt-2"><li><b>Android (Chrome):</b> กดปุ่มนี้ หรือเมนู ⋮ → “ติดตั้งแอป” กดไอคอนค้างจะมีทางลัด โน้ตลับ / เช็คลิสต์ / เอกสาร</li><li><b>iPhone (Safari):</b> ปุ่มแชร์ → “เพิ่มไปยังหน้าจอโฮม”</li><li>ติดตั้งแล้วเปิดได้เต็มจอและใช้งานออฟไลน์ได้</li></ul>`)}
 };
 function R(){$('#nav').innerHTML=TABS.map(([k,i,n])=>`<a href="#" data-go="${k}" class="${k===tab?'on':''}"><div class="text-lg">${i}</div>${n}</a>`).join('');
   const q=$('#q').value.trim().toLowerCase();
@@ -236,7 +286,8 @@ $('#q').oninput=R;
 const by=(a,i)=>S[a].find(x=>x.id==i),rm=(a,i)=>S[a]=S[a].filter(x=>x.id!=i);
 const val=id=>$(id).value.trim();
 async function gas(a,qs){const u=a.api||S.set.api,k=a.api?a.tok:S.set.token;if(!u)throw new Error('ยังไม่ได้ตั้งค่า Apps Script URL (ไปที่ตั้งค่า → Google Sheets Backend)');let r;
-  try{r=await(await fetch(`${u}?${qs}&token=${encodeURIComponent(k||'')}`)).json()}catch(e){throw new Error('เชื่อมต่อสคริปต์ไม่ได้ — ตรวจ URL และการ Deploy (Who has access = Anyone)')}
+  for(let t=0;t<2&&!r;t++){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),60000);try{r=await(await fetch(`${u}?${qs}&token=${encodeURIComponent(k||'')}`,{signal:ac.signal})).json()}catch(e){}finally{clearTimeout(to)}}
+  if(!r)throw new Error('เชื่อมต่อสคริปต์ไม่ได้ — ตรวจ URL และการ Deploy (Who has access = Anyone)')
   if(!r.ok){const m=String(r.error||'');throw new Error(m==='bad token'?'Token ไม่ตรงกับที่ตั้งไว้ในสคริปต์':/No item|permission|access|not found/i.test(m)?'บัญชีที่ Deploy สคริปต์เปิดโฟลเดอร์นี้ไม่ได้ — แชร์โฟลเดอร์ให้บัญชีนั้น หรือเพิ่มอัลบั้มโดยใส่ URL/Token ของสคริปต์จากบัญชีเจ้าของรูป':m)}return r}
 const A={
  cadd:()=>{const t=val('#ct');if(!t)return toast('พิมพ์ภารกิจก่อน')||1;S.check.unshift({id:uid(),at:Date.now(),t,lv:$('#sw').classList.contains('on')?'C':'N',d:0});ckF='todo'},
@@ -244,7 +295,7 @@ const A={
  ctog:i=>{const c=by('check',i);c.d=c.d?0:1;c.dn=c.d?Date.now():0;toast(c.d?'ย้ายไปแท็บ “เสร็จแล้ว”':'กลับไปที่ “ค้างอยู่”')},
  cedit:i=>{const c=by('check',i);if(!c.d)ckEd=+i},
  cnew:()=>{ckEd=0},
- csave:()=>{const t=val('#cet');if(!t)return toast('ภารกิจต้องไม่ว่าง')||1;const lv=$('#sw').classList.contains('on')?'C':'N';if(ckEd){const c=by('check',ckEd);Object.assign(c,{t,lv,up:Date.now()})}else{S.check.unshift({id:uid(),at:Date.now(),t,lv,d:0});ckF='todo'}ckEd=null},
+ csave:()=>{const t=val('#cet');if(!t)return toast('ภารกิจต้องไม่ว่าง')||1;const lv=$('#sw').classList.contains('on')?'C':'N',hm=hmv();if(ckEd){const c=by('check',ckEd);Object.assign(c,{t,lv,hm,up:Date.now()})}else{S.check.unshift({id:uid(),at:Date.now(),t,lv,d:0,hm});ckF='todo'}ckEd=null},
  ccancel:()=>{ckEd=null},
  cdel:i=>{if(confirm('ลบรายการนี้ถาวร?')){rm('check',i);rm('arch',i)}},
  cf:(i,e)=>{ckF=e.dataset.c;ckN=20}, more:()=>{ckN+=20},
@@ -264,7 +315,7 @@ const A={
   else document.execCommand(c);return 1},
  nsave:()=>{const t=val('#nt')||'ไม่มีชื่อ',h=$('#nh').innerHTML.trim(),cat=val('#nc')||'ทั่วไป';if(!txt(h).trim())return toast('ใส่เนื้อหาก่อนบันทึก')||1;
   if(S.cats[cat]===undefined)S.cats[cat]=Object.keys(S.cats).length%PAL.length;
-  if(editing)Object.assign(by('notes',editing),{t,h,cat,up:Date.now()});else S.notes.unshift({id:uid(),t,h,cat,at:Date.now(),up:Date.now(),pin:0});editing=null},
+  const hm=hmv();if(editing)Object.assign(by('notes',editing),{t,h,cat,hm,up:Date.now()});else S.notes.unshift({id:uid(),t,h,cat,hm,at:Date.now(),up:Date.now(),pin:0});editing=null},
  npin:i=>{const n=by('notes',i);n.pin=n.pin?0:1},
  show:i=>{RV.has(+i)?RV.delete(+i):RV.add(+i)}, nexp:i=>{EX.has(+i)?EX.delete(+i):EX.add(+i)},
  ncopy:i=>{navigator.clipboard.writeText(txt(by('notes',i).h)).then(()=>toast('คัดลอกแล้ว'));return 1},
@@ -273,11 +324,11 @@ const A={
  anew:()=>{aEd=0}, aclose:()=>{aEd=null}, aedit:i=>{aEd=+i},
  asave:()=>{const t=val('#an'),m=val('#au').match(/folders\/([\w-]+)|[?&]id=([\w-]+)/),cat=val('#ac')||'ทั่วไป',api=val('#aapi'),tok=val('#atok');if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;
   if(S.acats[cat]===undefined)S.acats[cat]=Object.keys(S.acats).length%PAL.length;
-  const o={t,cat,f:m[1]||m[2],api,tok:api?tok:''};if(aEd){const a=by('alb',aEd);if(a.f!==o.f){delete a.cv;delete a.cvId}Object.assign(a,o)}else S.alb.unshift({id:uid(),...o});aEd=null},
+  const o={t,cat,f:m[1]||m[2],api,tok:api?tok:'',hm:hmv()};if(aEd){const a=by('alb',aEd);if(a.f!==o.f){delete a.cv;delete a.cvId}Object.assign(a,o)}else S.alb.unshift({id:uid(),...o});aEd=null},
  adel:i=>{if(confirm('ลบอัลบั้มนี้ออกจากแอป? (ไม่ลบรูปใน Drive)')){rm('alb',i);aEd=null}},
  aopen:async i=>{await openAlbum(by('alb',i));return 1},
  dnew:()=>{dEd=0}, dclose:()=>{dEd=null}, dedit:i=>{dEd=+i},
- dsave:()=>{const t=val('#dt'),u=val('#du');if(!t||!/^https?:\/\//.test(u))return toast('ใส่ชื่อและลิงก์ที่ขึ้นต้นด้วย https://')||1;if(dEd)Object.assign(by('docs',dEd),{t,u});else S.docs.unshift({id:uid(),t,u});dEd=null},
+ dsave:()=>{const t=val('#dt'),u=val('#du');if(!t||!/^https?:\/\//.test(u))return toast('ใส่ชื่อและลิงก์ที่ขึ้นต้นด้วย https://')||1;const hm=hmv();if(dEd)Object.assign(by('docs',dEd),{t,u,hm});else S.docs.unshift({id:uid(),t,u,hm});dEd=null},
  dcopy:i=>{navigator.clipboard.writeText(by('docs',i).u).then(()=>toast('คัดลอก URL แล้ว'));return 1},
  ddel:i=>{if(confirm('ลบลิงก์นี้?'))rm('docs',i)},
  pin:async()=>{const p=prompt('PIN ใหม่ 6 หลัก');if(!/^\d{6}$/.test(p||''))return toast('PIN ต้องเป็นตัวเลข 6 หลัก')||1;
@@ -286,17 +337,39 @@ const A={
   try{await key(p,ub(meta.salt)).then(k=>unseal(localStorage.sk_data,k));return toast('ซ้ำกับ PIN จริง')||1}catch(e){}
   meta.dh=await sha(p+meta.salt);localStorage.sk_meta=JSON.stringify(meta);toast('ตั้ง Duress PIN แล้ว')},
  apisave:()=>{S.set.api=val('#api');S.set.token=val('#tok');toast('บันทึกแล้ว')},
- push:async()=>{A.apisave();try{await save();const r=await(await fetch(S.set.api,{method:'POST',body:JSON.stringify({token:S.set.token,blob:localStorage.sk_data})})).json();toast(r.ok?'ส่งขึ้น Google Sheets แล้ว':'ส่งไม่สำเร็จ')}catch(e){toast('เชื่อมต่อไม่ได้')}return 1},
- pull:async()=>{A.apisave();try{const r=await(await fetch(`${S.set.api}?token=${encodeURIComponent(S.set.token)}`)).json();if(!r.blob)return toast('ยังไม่มีข้อมูลบนชีต')||1;
-  const n=await unseal(r.blob,K);n.set={...n.set,api:S.set.api,token:S.set.token};S=n;toast('ดึงข้อมูลแล้ว')}catch(e){toast('ดึงไม่สำเร็จ (PIN/เกลือไม่ตรงกับเครื่องที่ส่ง)')}},
- exp:async()=>{await save();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({meta,data:localStorage.sk_data})],{type:'application/json'}));a.download=`stealthkeep-backup-v${VER}.json`;a.click();return 1},
- imp:()=>{$('#impf').click();return 1},
+  push:async()=>{A.apisave();try{const q=`${S.set.api}?token=${encodeURIComponent(S.set.token)}`,g=await(await fetch(q)).json();if(!g.ok)return toast('ส่งไม่สำเร็จ: Token ไม่ถูกต้อง')||1;
+   let ra=0;try{ra=+JSON.parse(g.blob).at||0}catch(x){}
+   if(ra>(+localStorage.sk_sync||0)&&!confirm(`บนชีตมีข้อมูลที่ใหม่กว่า (${fdt(ra)}) ซึ่งอาจมาจากเครื่องอื่น\nส่งขึ้นจะเขียนทับข้อมูลนั้น — แนะนำให้กด “ดึงลง” ก่อน\nต้องการเขียนทับหรือไม่?`))return 1;
+   S.set.bk=Date.now();await save();const env=mkEnv();env.at=S.set.bk;
+   const r=await(await fetch(S.set.api,{method:'POST',body:JSON.stringify({token:S.set.token,blob:JSON.stringify(S.set.bkpw?await wrapBk(env,S.set.bkpw):env)})})).json();
+   if(r.ok){localStorage.sk_sync=env.at;ABL=env.data;ABC=0;toast(S.set.bkpw?'ส่งขึ้น Google Sheets แล้ว (เข้ารหัสด้วยรหัสผ่านสำรอง)':'ส่งขึ้น Google Sheets แล้ว')}else toast('ส่งไม่สำเร็จ: '+(r.error||''))}catch(e){toast('เชื่อมต่อไม่ได้')}return 1},
+  pull:async()=>{A.apisave();try{const r=await(await fetch(`${S.set.api}?token=${encodeURIComponent(S.set.token)}`)).json();if(!r.ok)return toast('ดึงไม่สำเร็จ: Token ไม่ถูกต้อง')||1;if(!r.blob)return toast('ยังไม่มีข้อมูลบนชีต')||1;
+   const p=await openBk(r.blob,S.set.bkpw);if(!p)return 1;
+   if(p.salt!==meta.salt){if(!confirm('ข้อมูลบนชีตเป็นห้องนิรภัยคนละชุดกับเครื่องนี้ (เช่น เปลี่ยน PIN หรือสร้างจากเครื่องอื่น)\nกู้คืนจะแทนที่ข้อมูลและ PIN ในเครื่องนี้ทั้งหมด ต้องใช้ PIN ของข้อมูลบนชีต\nทำต่อหรือไม่?'))return 1;p.api=S.set.api;p.tok=S.set.token;startRestore(p);return 1}
+   if(p.at&&p.at<(+localStorage.sk_sync||0)&&!confirm('ข้อมูลบนชีตเก่ากว่าที่เครื่องนี้เคยซิงก์ ต้องการดึงลงทับหรือไม่?'))return 1;
+   const n=await unseal(p.data,K);n.set={...n.set,api:S.set.api,token:S.set.token,ab:S.set.ab,bkpw:S.set.bkpw||n.set.bkpw};S=n;ABC=0;if(p.at)localStorage.sk_sync=p.at;toast('ดึงข้อมูลแล้ว')}catch(e){toast('ดึงไม่สำเร็จ')}},
+  exp:async()=>{const pw=prompt('ตั้งรหัสผ่านป้องกันไฟล์สำรอง (อย่างน้อย 8 ตัวอักษร)\nแนะนำ: ไฟล์ที่ไม่มีรหัสผ่านจะถูกป้องกันด้วย PIN 6 หลักเท่านั้น หากไฟล์หลุดอาจถูกเดา PIN ได้\n\nเว้นว่าง = ไม่ใช้รหัสผ่านไฟล์');if(pw===null)return 1;if(pw&&pw.length<8)return toast('รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร')||1;
+   S.set.bk=Date.now();await save();let env=mkEnv();env.at=S.set.bk;if(pw)env=await wrapBk(env,pw);
+   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(env)],{type:'application/json'}));a.download=`stealthkeep-backup-${new Date().toISOString().slice(0,10)}-v${VER}.json`;a.click();toast(pw?'สำรองไฟล์แล้ว (มีรหัสผ่าน)':'สำรองไฟล์แล้ว')},
+  imp:()=>{$('#impf').click();return 1},
+ bkpw:()=>{const a=prompt('ตั้งรหัสผ่านสำรอง (อย่างน้อย 8 ตัวอักษร)\nใช้เข้ารหัสข้อมูลที่ส่งขึ้นชีต และต้องใส่ตอนกู้คืนบนเครื่องใหม่\n⚠️ ลืมรหัสนี้ = กู้คืนจากชีตไม่ได้\n\nเว้นว่าง = ลบรหัสผ่าน (จะปิดสำรองอัตโนมัติด้วย)');if(a===null)return 1;
+   if(!a){S.set.bkpw='';S.set.ab=0;clearTimeout(AT);AT=null;return toast('ลบรหัสผ่านสำรองและปิดสำรองอัตโนมัติแล้ว')||0}
+   if(a.length<8)return toast('รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร')||1;if(prompt('พิมพ์รหัสผ่านสำรองอีกครั้งเพื่อยืนยัน')!==a)return toast('รหัสผ่านไม่ตรงกัน')||1;
+   S.set.bkpw=a;toast('ตั้งรหัสผ่านสำรองแล้ว — จดไว้ในที่ปลอดภัย')},
+ abt:()=>{if(S.set.ab){S.set.ab=0;clearTimeout(AT);AT=null;return toast('ปิดสำรองอัตโนมัติแล้ว')||0}
+   A.apisave();if(!S.set.api)return toast('ตั้ง URL และ Token ของ Google Sheets ก่อน')||1;if(!S.set.bkpw)return toast('ตั้งรหัสผ่านสำรองก่อน')||1;
+   S.set.ab=1;ABC=0;toast('เปิดสำรองอัตโนมัติแล้ว — จะส่งขึ้นชีตหลังแก้ข้อมูล')},
+ hmt:()=>{$('#hm').classList.toggle('on');return 1},
+ hedit:(i,e)=>{const k=e.dataset.k;tab=k;if(k==='check')ckEd=+i;else if(k==='notes')editing=+i;else if(k==='alb')aEd=+i;else dEd=+i},
+ hoff:(i,e)=>{const o=by(e.dataset.k,i);if(o)delete o.hm;toast('เอาออกจากหน้าแรกแล้ว')},
+ hlp:(i,e)=>{const t=e.dataset.c;HLP.has(t)?HLP.delete(t):HLP.add(t)},
+ imgclr:async()=>{IMG.forEach(u=>URL.revokeObjectURL(u));IMG.clear();try{await dbx('readwrite',s=>{s.clear()})}catch(e){}toast('ล้างแคชรูปแล้ว');return 1},
  wipe:()=>{if(confirm('ล้างเซสชันและล็อกทันที?')){lock()}return 1},
  install:async()=>{if(deferred){deferred.prompt();deferred=null}else toast('ใช้เมนูเบราว์เซอร์ → “เพิ่มลงหน้าจอหลัก”');return 1}
 };
 $('#view').addEventListener('change',async e=>{if(e.target.id==='auto'){S.set.auto=+e.target.value;bump();await save()}
   if(e.target.id==='aarch'){S.set.arch=+e.target.value;await save()}
-  if(e.target.id==='impf'){const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(j.meta.salt!==meta.salt)throw 0;S=await unseal(j.data,K);await save();R();toast('นำเข้าแล้ว')}catch(x){toast('นำเข้าไม่ได้ — ต้องเป็นไฟล์จากห้องนิรภัย/PIN เดียวกัน')}}
+  if(e.target.id==='impf'){const f=e.target.files[0];e.target.value='';if(!f)return;const p=await openBk(await f.text());if(p&&confirm('กู้คืนจากไฟล์นี้จะแทนที่ข้อมูลและ PIN ในเครื่องนี้ทั้งหมด (ยกเลิกได้ที่หน้าใส่ PIN โดยข้อมูลเดิมจะยังอยู่)\nทำต่อหรือไม่?'))startRestore(p)}
   if(e.target.dataset.a==='ctog'){await run(e.target)}});
 async function run(el){const a=el.dataset.a;if(!A[a])return;if(duress&&['pin','dpin','push','pull','exp','imp'].includes(a))return;const skip=await A[a](el.dataset.i,el);await save();if(skip!==1)R()}
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();tab=g.dataset.go;editing=null;aEd=null;ckEd=null;dEd=null;$('#q').value='';R();return}
@@ -307,18 +380,42 @@ $('#view').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cet
 $('#view').addEventListener('paste',e=>{if(e.target.id==='nh'){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
 
 /* ---------- Lightbox ---------- */
-async function openAlbum(a){const L=LB={a,list:[],i:0,z:1,mask:false,cache:{},ld:{},err:'',busy:1};lbDraw();
-  try{const r=await gas(a,`action=folder&id=${a.f}&show=${a.cvId||''}`);if(LB!==L)return;L.list=r.files;if(!r.files.length)L.err='ไม่พบรูปภาพในโฟลเดอร์นี้';else{L.i=Math.max(0,r.files.findIndex(f=>f.id===r.sid));if(r.d)L.cache[r.sid]=r.d}}catch(e){L.err=e.message}
+/* แคชรูป: RAM (blob URL) + IndexedDB เข้ารหัส AES-GCM ด้วยคีย์ของห้องนิรภัย (อ่านได้เฉพาะตอนปลดล็อกด้วย PIN เดิม) */
+const idb=()=>idb.p||(idb.p=new Promise((ok,no)=>{try{const r=indexedDB.open('sk_cache',1);r.onupgradeneeded=()=>{r.result.createObjectStore('c',{keyPath:'k'}).createIndex('t','t')};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}}));
+const dbx=async(m,f)=>{const d=await idb();return new Promise((ok,no)=>{const t=d.transaction('c',m);let q;try{q=f(t.objectStore('c'))}catch(e){return no(e)}t.oncomplete=()=>ok(q&&q.result);t.onerror=t.onabort=()=>no(t.error)})};
+const cget=async k=>{try{const w=K;if(!w||duress)return null;const row=await dbx('readonly',s=>s.get(k));if(!row)return null;return{y:row.y,b:await crypto.subtle.decrypt({name:'AES-GCM',iv:row.iv},w,row.d)}}catch(e){return null}};
+const cput=async(k,buf,y)=>{try{const w=K;if(!w||duress)return;const iv=crypto.getRandomValues(new Uint8Array(12)),d=await crypto.subtle.encrypt({name:'AES-GCM',iv},w,buf);
+  await dbx('readwrite',s=>{s.put({k,iv,d,y,t:Date.now()})});
+  await dbx('readwrite',s=>{const c=s.count();c.onsuccess=()=>{let n=c.result-MAXDB;if(n>0)s.index('t').openCursor().onsuccess=e=>{const u=e.target.result;if(u&&n-->0){u.delete();u.continue()}}}})}catch(e){}};
+const d2b=d=>{const i=d.indexOf(','),m=/^data:([^;,]+)/.exec(d.slice(0,i));if(!m||m[1].indexOf('image/')!==0)throw new Error('สคริปต์ส่งข้อมูลที่ไม่ใช่รูปกลับมา — ลอง Deploy Code.gs เวอร์ชันล่าสุดอีกครั้ง');const bin=atob(d.slice(i+1)),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);return new Blob([u],{type:m[1]})};
+const touch=(id,u)=>{IMG.delete(id);IMG.set(id,u);while(IMG.size>MAXRAM){const[k,v]=IMG.entries().next().value;IMG.delete(k);URL.revokeObjectURL(v)}};
+function ingest(id,d){if(IMG.has(id)||PEND.has(id))return;try{const bl=d2b(d);bl.arrayBuffer().then(b=>cput('i:'+id,b,bl.type));touch(id,URL.createObjectURL(bl))}catch(e){}}
+function getImg(L,f){const id=f.id;if(IMG.has(id)){const u=IMG.get(id);touch(id,u);return Promise.resolve(u)}if(PEND.has(id))return PEND.get(id);
+  const p=(async()=>{let bl;const c=await cget('i:'+id);if(c)bl=new Blob([c.b],{type:c.y||'image/jpeg'});else{const r=await gas(L.a,`action=img&id=${id}`);bl=d2b(r.d);bl.arrayBuffer().then(b=>cput('i:'+id,b,bl.type))}
+    if(!S)throw new Error('locked');const u=URL.createObjectURL(bl);touch(id,u);return u})();
+  PEND.set(id,p);const done=()=>{if(PEND.get(id)===p)PEND.delete(id)};p.then(done,done);return p}
+async function openAlbum(a){const L=LB={a,list:[],i:0,z:1,mask:false,errs:{},tried:{},err:'',busy:1},lk='l:'+a.f;lbDraw();
+  let cl=null;try{const c=await cget(lk);if(c)cl=JSON.parse(dec.decode(c.b))}catch(e){}
+  if(LB!==L)return;
+  if(cl&&cl.length){L.list=cl;L.i=Math.max(0,cl.findIndex(f=>f.id===a.cvId));L.busy=0;lbDraw()} // มีรายชื่อในแคช → แสดงรูปทันที แล้วค่อยอัปเดตเบื้องหลัง
+  else if(a.cvId)getImg(L,{id:a.cvId,name:''}).then(()=>{if(LB===L)lbDraw()},()=>{}); // ไม่มีแคช แต่รู้รูปปก → โหลดรูปขนานกับรายชื่อ
+  try{const r=await gas(a,`action=folder&id=${a.f}&show=${a.cvId||''}${cl&&cl.length||a.cvId?'&noimg=1':''}`);if(LB!==L)return;
+    const cur=L.list[L.i]&&L.list[L.i].id;
+    if(!r.files.length){L.list=[];L.err='ไม่พบรูปภาพในโฟลเดอร์นี้'}
+    else{L.list=r.files;L.i=Math.max(0,r.files.findIndex(f=>f.id===(cur||r.sid||a.cvId)));if(r.d&&r.sid)ingest(r.sid,r.d)}
+    cput(lk,enc.encode(JSON.stringify(r.files)),'j')}
+  catch(e){if(!L.list.length)L.err=e.message}
   L.busy=0;if(LB===L)lbDraw()}
-function loadImg(L,f){if(L.ld[f.id])return;L.ld[f.id]=1;gas(L.a,`action=img&id=${f.id}`).then(r=>{L.cache[f.id]=r.d}).catch(e=>{L.cache[f.id]='';L.err=e.message}).then(()=>{if(LB===L&&L.list[L.i]===f)lbDraw()})}
-const pre=L=>[1,-1].forEach(d=>{const f=L.list[(L.i+d+L.list.length)%L.list.length];if(f&&L.cache[f.id]===undefined)loadImg(L,f)});
-function setCover(L){const f=L.list[L.i],src=L.cache[f.id];if(!src)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),z=200,s=Math.min(im.width,im.height);c.width=c.height=z;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,z,z);L.a.cv=c.toDataURL('image/jpeg',.7);L.a.cvId=f.id;save();if(LB===L)lbDraw();toast('ตั้งเป็นปกแล้ว')};im.src=src}
-function lbDraw(){const L=LB;if(!L)return;const f=L.list[L.i],src=f?L.cache[f.id]:'';$('#lb').classList.remove('hidden');if(f&&src===undefined)loadImg(L,f);
+function loadCur(L,f){getImg(L,f).then(()=>{if(LB===L&&L.list[L.i]===f)lbDraw()},e=>{L.errs[f.id]=e.message;if(LB===L&&L.list[L.i]===f)lbDraw()})}
+function pre(L){const n=L.list.length;if(!n)return;let run=PEND.size;for(const d of[1,2,-1,3]){if(run>=2)break;const f=L.list[((L.i+d)%n+n)%n];if(!f||f===L.list[L.i]||IMG.has(f.id)||PEND.has(f.id)||L.tried[f.id])continue;L.tried[f.id]=1;run++;getImg(L,f).then(()=>{if(LB===L)pre(L)},()=>{})}} // โหลดล่วงหน้า ถัดไป 2 / ก่อนหน้า 1 / ถัดไปอีก 1 (พร้อมกันไม่เกิน 2)
+function setCover(L){const f=L.list[L.i],src=f&&IMG.get(f.id);if(!src)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),z=200,s=Math.min(im.width,im.height);c.width=c.height=z;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,z,z);L.a.cv=c.toDataURL('image/jpeg',.7);L.a.cvId=f.id;save();if(LB===L)lbDraw();toast('ตั้งเป็นปกแล้ว')};im.src=src}
+function lbDraw(){const L=LB;if(!L)return;const f=L.list[L.i],src=f?IMG.get(f.id):'',er=f&&L.errs[f.id];$('#lb').classList.remove('hidden');if(f&&src)touch(f.id,src);if(f&&!src&&!er&&!PEND.has(f.id))loadCur(L,f);
   $('#lb').innerHTML=`<div class="flex items-center gap-2 p-3 text-white"><span class="flex-1 min-w-0 text-sm truncate">${f?`${L.i+1}/${L.list.length} • ${esc(f.name)}`:esc(L.a.t)}</span>${f?`<button class="lbb" id="cv" aria-label="ตั้งเป็นปก">${L.a.cvId===f.id?IC.starF:IC.star}</button><button class="lbb" id="zo">−</button><span class="text-xs w-10 text-center">${Math.round(L.z*100)}%</span><button class="lbb" id="zi">+</button><button class="lbb" id="mk" aria-label="ซ่อนรูป">${L.mask?IC.eyeoff:IC.eye}</button>`:''}<button class="lbb" id="cl2" aria-label="ปิด">${IC.x}</button></div>
-  <div class="flex-1 overflow-auto flex items-center justify-center relative">${src?`<img src="${src}" style="transform:scale(${L.z});transition:transform .2s;max-width:100%;max-height:100%;object-fit:contain;${L.mask?'filter:blur(30px)':''}" alt="">`:`<span class="text-slate-400 px-6 text-center">${L.err||'กำลังโหลดรูป…'}</span>`}${L.mask&&src?'<b class="absolute text-emerald-400 tracking-widest border border-emerald-400 px-3 py-1">DATA SECURED // REDACTED</b>':''}</div>
+  <div class="flex-1 overflow-auto flex items-center justify-center relative">${src?`<img src="${src}" decoding="async" style="transform:scale(${L.z});transition:transform .2s;max-width:100%;max-height:100%;object-fit:contain;${L.mask?'filter:blur(30px)':''}" alt="">`:`<div class="text-slate-400 px-6 text-center space-y-3"><div>${esc(L.err||er||(L.busy&&!f?'กำลังโหลดรายการรูป…':'กำลังโหลดรูป…'))}</div>${er?'<button class="btn2" id="rt">ลองใหม่</button>':''}</div>`}${L.mask&&src?'<b class="absolute text-emerald-400 tracking-widest border border-emerald-400 px-3 py-1">DATA SECURED // REDACTED</b>':''}</div>
   <div class="flex justify-between p-3"><button class="lbb" id="pv" aria-label="ก่อนหน้า" style="transform:scaleX(-1)">${IC.chev}</button><button class="lbb" id="nx" aria-label="ถัดไป">${IC.chev}</button></div>`;
   const n=L.list.length,go=d=>{if(!n)return;L.i=(L.i+d+n)%n;L.z=1;L.err='';lbDraw()},zz=d=>{L.z=Math.min(3,Math.max(.5,L.z+d));lbDraw()};
   $('#pv').onclick=()=>go(-1);$('#nx').onclick=()=>go(1);if(f){$('#zi').onclick=()=>zz(.25);$('#zo').onclick=()=>zz(-.25);$('#mk').onclick=()=>{L.mask=!L.mask;lbDraw()};$('#cv').onclick=()=>setCover(L)}
+  if($('#rt'))$('#rt').onclick=()=>{delete L.errs[f.id];lbDraw()};
   $('#cl2').onclick=()=>{LB=null;$('#lb').classList.add('hidden');$('#lb').innerHTML=''};L.go=go;L.zz=zz;if(src)pre(L)}
 function lbKey(e){const L=LB;if(e.key==='ArrowRight')L.go(1);if(e.key==='ArrowLeft')L.go(-1);if(e.key==='+')L.zz(.25);if(e.key==='-')L.zz(-.25);if(e.key==='Escape')$('#cl2').click()}
 let tx=0,ty=0;$('#lb').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});

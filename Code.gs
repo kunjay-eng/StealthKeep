@@ -1,41 +1,72 @@
-// StealthKeep backend – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
+// StealthKeep backend v1.6.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
 // บัญชีที่ Deploy สคริปต์นี้ ต้องเปิดโฟลเดอร์รูปได้ (เป็นเจ้าของ หรือถูกแชร์ให้)
 const TOKEN = 'เปลี่ยนเป็นรหัสลับของคุณ';
 const sh = () => { const s = SpreadsheetApp.getActiveSpreadsheet(); return s.getSheetByName('Vault') || s.insertSheet('Vault'); };
 const out = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
-// ขอรูปขนาด ~1280px ผ่านสิทธิ์ของบัญชีเจ้าของสคริปต์ (เร็วกว่าไฟล์เต็ม) ถ้าไม่ได้จะใช้ไฟล์เต็มแทน
+// ขอรูปขนาด ~1280px ผ่านสิทธิ์ของบัญชีเจ้าของสคริปต์ (เร็วกว่าไฟล์เต็ม)
+// ถ้าไม่ได้: ไฟล์ต้นฉบับ <= 4MB ส่งทั้งไฟล์, ใหญ่กว่านั้นส่งภาพย่อของ Drive แทน (กันค้าง/ช้าจากไฟล์ใหญ่)
+const BIG = 4 * 1024 * 1024;
 function img(id) {
   try {
     const r = UrlFetchApp.fetch('https://drive.google.com/thumbnail?id=' + id + '&sz=w1280',
       { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
-    if (r.getResponseCode() === 200) return uri(r.getBlob());
+    const b = r.getBlob();
+    if (r.getResponseCode() === 200 && String(b.getContentType()).indexOf('image/') === 0) return uri(b); // กันหน้า HTML/login หลุดมาเป็นรูป
   } catch (x) {}
-  return uri(DriveApp.getFileById(id).getBlob());
+  const f = DriveApp.getFileById(id);
+  if (f.getSize() > BIG) { const t = f.getThumbnail(); if (t) return uri(t); }
+  return uri(f.getBlob());
 }
 const uri = b => 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes());
+// รายชื่อรูปในโฟลเดอร์: ค้นเฉพาะรูปในครั้งเดียว (เร็วกว่าไล่เช็ค MIME ทีละไฟล์) และอ่านชื่อครั้งเดียวก่อนเรียง
+function list(id) {
+  const fo = DriveApp.getFolderById(id), out = [];
+  try {
+    const it = fo.searchFiles("mimeType contains 'image/'");
+    while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName() }); }
+  } catch (x) { out.length = 0; }
+  if (!out.length) { // สำรอง: วิธีเดิม
+    const it = fo.getFiles();
+    while (it.hasNext()) { const f = it.next(); if (f.getMimeType().indexOf('image/') === 0) out.push({ id: f.getId(), name: f.getName() }); }
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+// เซลล์ใน Google Sheets เก็บได้ไม่เกิน 50,000 ตัวอักษร → แบ่งเป็นท่อนละ 45,000 ตัวอักษรลงคอลัมน์ A หลายแถว
+const CHUNK = 45000;
+function writeBlob(t) {
+  const s = sh(), parts = [];
+  for (let i = 0; i < t.length; i += CHUNK) parts.push([t.substring(i, i + CHUNK)]);
+  if (!parts.length) parts.push(['']);
+  s.clear();
+  s.getRange(1, 1, parts.length, 1).setNumberFormat('@').setValues(parts);
+}
+function readBlob() { // อ่านได้ทั้งรูปแบบใหม่ (หลายแถว) และเก่า (เซลล์ A1 เดียว)
+  const s = sh(), n = s.getLastRow();
+  return n < 1 ? '' : s.getRange(1, 1, n, 1).getValues().map(r => String(r[0])).join('');
+}
 
 function doGet(e) {
   const p = e.parameter;
   try {
     if (p.token !== TOKEN) return out({ ok: false, error: 'bad token' });
-    if (p.action === 'folder') { // รายชื่อรูป (เร็ว ไม่มีภาพย่อ) + รูปแรกที่ต้องแสดง
-      const it = DriveApp.getFolderById(p.id).getFiles(), all = [];
-      while (it.hasNext()) { const f = it.next(); if (f.getMimeType().indexOf('image/') === 0) all.push(f); }
-      all.sort((a, b) => a.getName().localeCompare(b.getName()));
-      const files = all.map(f => ({ id: f.getId(), name: f.getName() }));
+    if (p.action === 'folder') { // รายชื่อรูป + (ถ้าไม่ส่ง noimg=1) รูปแรกที่ต้องแสดงมาในรอบเดียว
+      const files = list(p.id);
       if (!files.length) return out({ ok: true, files: files });
+      if (p.noimg === '1') return out({ ok: true, files: files });
       const sid = files.some(f => f.id === p.show) ? p.show : files[0].id;
       return out({ ok: true, files: files, sid: sid, d: img(sid) });
     }
     if (p.action === 'img') return out({ ok: true, d: img(p.id) });
-    return out({ ok: true, blob: sh().getRange('A1').getValue() || '' });
+    return out({ ok: true, blob: readBlob() });
   } catch (err) { return out({ ok: false, error: String(err) }); }
 }
 function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
     if (b.token !== TOKEN) return out({ ok: false, error: 'bad token' });
-    sh().getRange('A1').setValue(b.blob); // เก็บเฉพาะข้อมูลที่เข้ารหัสแล้ว
+    writeBlob(String(b.blob || '')); // เก็บเฉพาะข้อมูลที่เข้ารหัสแล้ว
     return out({ ok: true });
   } catch (err) { return out({ ok: false, error: String(err) }); }
 }
