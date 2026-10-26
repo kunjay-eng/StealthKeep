@@ -1,4 +1,4 @@
-# StealthKeep v2.1.0
+# StealthKeep v2.2.1
 ห้องนิรภัยดิจิทัลแบบ PWA (HTML + Vanilla JS + Tailwind) — ข้อมูลเข้ารหัส AES-256-GCM ในเครื่อง (คีย์มาจาก PIN ผ่าน PBKDF2)
 
 ## ติดตั้งผ่าน GitHub Pages

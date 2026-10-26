@@ -1,4 +1,4 @@
-// StealthKeep backend v2.1.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
+// StealthKeep backend v2.2.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
 // บัญชีที่ Deploy สคริปต์นี้ ต้องเปิดโฟลเดอร์รูปได้ (เป็นเจ้าของ หรือถูกแชร์ให้)
 const TOKEN = 'เปลี่ยนเป็นรหัสลับของคุณ';
 const sh = () => { const s = SpreadsheetApp.getActiveSpreadsheet(); return s.getSheetByName('Vault') || s.insertSheet('Vault'); };
@@ -51,13 +51,21 @@ function list(id) {
 // ---- เพลง (MP3 ฯลฯ) ใน Drive: ส่งไฟล์เป็น base64 (จำกัด 25MB) และรายชื่อไฟล์เสียงในโฟลเดอร์ ----
 const AUD = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac' };
 const extOf = n => String(n).split('.').pop().toLowerCase();
-function audio(id) {
-  const f = DriveApp.getFileById(id);
-  if (f.getSize() > 25 * 1024 * 1024) throw new Error('ไฟล์เพลงใหญ่เกิน 25MB');
-  const b = f.getBlob();
-  let y = String(b.getContentType());
-  if (y.indexOf('audio/') !== 0) y = AUD[extOf(f.getName())] || 'audio/mpeg';
-  return { y: y, n: f.getName(), d: Utilities.base64Encode(b.getBytes()) };
+// ส่งไฟล์เพลงเป็นชิ้น (o = ตำแหน่งไบต์, l = ขนาดชิ้น) เพื่อให้แอปแสดง % การโหลดได้ — ถ้าไม่ส่ง l จะส่งทั้งไฟล์
+function audio(id, o, l) {
+  const f = DriveApp.getFileById(id), size = f.getSize();
+  if (size > 25 * 1024 * 1024) throw new Error('ไฟล์เพลงใหญ่เกิน 25MB');
+  const name = f.getName();
+  let y = String(f.getMimeType());
+  if (y.indexOf('audio/') !== 0) y = AUD[extOf(name)] || 'audio/mpeg';
+  o = Number(o) || 0; l = Number(l) || size;
+  if (o >= size) return { y: y, n: name, t: size, o: o, d: '' };
+  const e = Math.min(size, o + l) - 1;
+  try {
+    const r = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media', { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken(), Range: 'bytes=' + o + '-' + e }, muteHttpExceptions: true });
+    if (r.getResponseCode() === 206 || (r.getResponseCode() === 200 && o === 0 && e === size - 1)) return { y: y, n: name, t: size, o: o, d: Utilities.base64Encode(r.getContent()) };
+  } catch (x) {}
+  return { y: y, n: name, t: size, o: 0, all: 1, d: Utilities.base64Encode(f.getBlob().getBytes()) }; // สำรอง: ส่งทั้งไฟล์
 }
 function audioList(id) {
   const fo = DriveApp.getFolderById(id), res = [];
@@ -99,7 +107,7 @@ function doGet(e) {
       return out({ ok: true, files: files, sid: sid, d: img(sid) });
     }
     if (p.action === 'img') return out({ ok: true, d: img(p.id) });
-    if (p.action === 'audio') { const r = audio(p.id); return out({ ok: true, d: r.d, y: r.y, n: r.n }); }
+    if (p.action === 'audio') { return out(Object.assign({ ok: true }, audio(p.id, p.o, p.l))); }
     if (p.action === 'audiolist') return out({ ok: true, files: audioList(p.id) });
     if (p.action === 'imgs') return out({ ok: true, items: imgs(String(p.ids || '').split(',').filter(String).slice(0, 4)) });
     return out({ ok: true, blob: readBlob() });
