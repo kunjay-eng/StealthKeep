@@ -1,4 +1,4 @@
-// StealthKeep backend v1.6.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
+// StealthKeep backend v1.8.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
 // บัญชีที่ Deploy สคริปต์นี้ ต้องเปิดโฟลเดอร์รูปได้ (เป็นเจ้าของ หรือถูกแชร์ให้)
 const TOKEN = 'เปลี่ยนเป็นรหัสลับของคุณ';
 const sh = () => { const s = SpreadsheetApp.getActiveSpreadsheet(); return s.getSheetByName('Vault') || s.insertSheet('Vault'); };
@@ -16,6 +16,21 @@ function img(id) {
   const f = DriveApp.getFileById(id);
   if (f.getSize() > BIG) { const t = f.getThumbnail(); if (t) return uri(t); }
   return uri(f.getBlob());
+}
+// รูปหลายใบในคำขอเดียว: ดึงภาพย่อพร้อมกันฝั่งเซิร์ฟเวอร์ (fetchAll) — เร็วกว่าขอทีละรูปหลายเท่า
+function imgs(ids) {
+  const tk = ScriptApp.getOAuthToken();
+  let rs = [];
+  try {
+    rs = UrlFetchApp.fetchAll(ids.map(id => ({ url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1280', headers: { Authorization: 'Bearer ' + tk }, muteHttpExceptions: true })));
+  } catch (x) {}
+  return ids.map((id, i) => {
+    try {
+      const r = rs[i];
+      if (r && r.getResponseCode() === 200) { const b = r.getBlob(); if (String(b.getContentType()).indexOf('image/') === 0) return { id: id, d: uri(b) }; }
+      return { id: id, d: img(id) }; // สำรอง: วิธีเดิมทีละรูป
+    } catch (x) { return { id: id, e: String(x) }; }
+  });
 }
 const uri = b => 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes());
 // รายชื่อรูปในโฟลเดอร์: ค้นเฉพาะรูปในครั้งเดียว (เร็วกว่าไล่เช็ค MIME ทีละไฟล์) และอ่านชื่อครั้งเดียวก่อนเรียง
@@ -59,6 +74,7 @@ function doGet(e) {
       return out({ ok: true, files: files, sid: sid, d: img(sid) });
     }
     if (p.action === 'img') return out({ ok: true, d: img(p.id) });
+    if (p.action === 'imgs') return out({ ok: true, items: imgs(String(p.ids || '').split(',').filter(String).slice(0, 4)) });
     return out({ ok: true, blob: readBlob() });
   } catch (err) { return out({ ok: false, error: String(err) }); }
 }
