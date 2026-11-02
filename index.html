@@ -42,6 +42,7 @@ body{font-size:16px;line-height:1.65}
 input,select,textarea{padding:.85rem 1rem;font-size:1rem;min-height:3rem;line-height:1.5}
 textarea{resize:none}
 input[type=date]{color-scheme:dark;appearance:none;-webkit-appearance:none;text-align:left}
+button.chip:disabled{opacity:.3}
 input[type=checkbox]{width:1.5rem;height:1.5rem;min-height:0;padding:0;flex:none;accent-color:var(--acc)}
 .btn,.btn2{padding:.75rem 1.2rem;min-height:3rem}
 .ib{min-width:2.75rem;height:2.75rem;font-size:1.2rem;border-radius:12px}
@@ -169,7 +170,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='2.6.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='2.7.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=b=>{const u=new Uint8Array(b);let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t)},ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -247,7 +248,7 @@ gate(meta?'ใส่ PIN 6 หลัก':'ตั้ง PIN 6 หลักสำ�
 /* ---------- Views ---------- */
 const TABS=[['home','🏠','หน้าแรก'],['check','✅','เช็คลิสต์'],['notes','📝','โน้ตลับ'],['alb','🖼️','อัลบั้ม'],['docs','📄','เอกสาร'],['pl','🎵','เพลง'],['set','⚙️','ตั้งค่า']];
 const PAL=['#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899','#3B82F6'],catC=c=>PAL[S.cats[c]??0];
-let ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null,pEd=null,plG='ทั้งหมด',plF=null,plSel=null;const PLB=new Set();const RV=new Set(),EX=new Set(),HLP=new Set();
+let nOrd=0,aOrd=0,ckF='todo',ckN=20,nCat='ทั้งหมด',ckEd=null,aCat='ทั้งหมด',aEd=null,dEd=null,pEd=null,plG='ทั้งหมด',plF=null,plSel=null;const PLB=new Set();const RV=new Set(),EX=new Set(),HLP=new Set();
 const svg=(p,f,w=18)=>`<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="${f||'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const PIN='<path d="M12 17v5"/><path d="M9 3h6l-1 7 3 3v2H7v-2l3-3Z"/>',STAR='<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9Z"/>',EYE='<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
 const IC={copy:svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),edit:svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),trash:svg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),pin:svg(PIN),pinF:svg(PIN,'currentColor'),
@@ -271,6 +272,12 @@ const lastBk=()=>Math.max(S.set.bk||0,+localStorage.sk_sync||0);
 const dur=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?`${d} วัน ${h} ชม.`:h?`${h} ชม. ${m%60} นาที`:m?`${m} นาที`:'ไม่ถึง 1 นาที'};
 const txt=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent};
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}};
+const ordCats=(k,a)=>{const o=S[k]||[];return [...a].sort((x,y)=>{const i=o.indexOf(x),j=o.indexOf(y);return(i<0?1e9:i)-(j<0?1e9:j)})};
+const sortL=(L,m)=>m==='old'?[...L].reverse():m==='name'?[...L].sort((a,b)=>String(a.t||'').localeCompare(String(b.t||''),'th')):m==='upd'?[...L].sort((a,b)=>(b.up||b.at||+b.id||0)-(a.up||a.at||+a.id||0)):L;
+const NSO=[['new','ใหม่สุด'],['old','เก่าสุด'],['name','ชื่อ ก-ฮ'],['upd','แก้ไขล่าสุด']],ASO=[['new','ใหม่สุด'],['old','เก่าสุด'],['name','ชื่อ ก-ฮ']];
+const sortBar=(a,cur,o)=>`<div class="chips" style="align-items:center"><span class="text-xs text-slate-400" style="flex:none">เรียง</span>${o.map(([v,t])=>chip(cur===v,a,v,t)).join('')}</div>`;
+const ordPanel=(a,done,cs,cnt,col)=>`<div class="space-y-2"><p class="text-xs text-slate-400">กด ▲ ▼ เพื่อจัดลำดับปุ่มหมวดหมู่ตามที่ต้องการ</p>${cs.map((c,i)=>`<div class="flex items-center gap-2"><div class="flex-1 min-w-0">${tg(esc(c)+' '+cnt(c),col(c))}</div><button type="button" class="chip" data-a="${a}" data-c="${esc(c)}" data-d="-1" ${i?'':'disabled'} aria-label="เลื่อนขึ้น">▲</button><button type="button" class="chip" data-a="${a}" data-c="${esc(c)}" data-d="1" ${i<cs.length-1?'':'disabled'} aria-label="เลื่อนลง">▼</button></div>`).join('')}<button type="button" class="btn w-full" data-a="${done}">เสร็จ</button></div>`;
+const mvCat=(k,src,e)=>{const cs=ordCats(k,[...new Set(src.map(x=>x.cat||'ทั่วไป'))]),i=cs.indexOf(e.dataset.c),j=i+ +e.dataset.d;if(i<0||j<0||j>=cs.length)return 1;[cs[i],cs[j]]=[cs[j],cs[i]];S[k]=cs};
 const SITES=[[/facebook\.com|fb\.com|fb\.watch|fb\.me/i,'Facebook','#3B82F6','📘'],[/shopee\./i,'Shopee','#F97316','🛒'],[/lazada\./i,'Lazada','#A855F7','🛍️'],[/tiktok\./i,'TikTok','#EC4899','🎵'],[/youtu\.?be/i,'YouTube','#EF4444','▶️'],[/instagram\./i,'Instagram','#F472B6','📷'],[/line\.me|lin\.ee/i,'LINE','#22C55E','💬'],[/twitter\.com|x\.com/i,'X','#94A3B8','✖️'],[/(drive|docs)\.google\./i,'Google Drive','#10B981','📁']];
 const siteInfo=u=>{const h=host(u),m=SITES.find(x=>x[0].test(h));return m?[m[1],m[2],m[3]]:[h||'เว็บไซต์','#06B6D4','🌐']};
 const lkNorm=r=>{r=String(r||'').trim();if(!r)return '';if(!/^[a-z][a-z0-9+.-]*:/i.test(r))r='https://'+r;try{const x=new URL(r);return /^https?:$/.test(x.protocol)&&x.hostname.includes('.')?x.href:''}catch(e){return ''}};
@@ -306,7 +313,7 @@ check:()=>{if(ckEd!==null){const c=ckEd?by('check',ckEd):{t:'',lv:'N'};if(ckEd&&
  +`<div class="chips">${chip(ckF==='todo','cf','todo','ค้างอยู่ '+T.length)}${chip(ckF==='done','cf','done','เสร็จแล้ว '+D.length)}${chip(ckF==='arch','cf','arch','คลัง '+S.arch.length)}</div>`
  +(ckF==='done'&&D.length?`<button class="btn2 w-full" data-a="carcall">เก็บที่เสร็จทั้งหมดเข้าคลัง</button>`:'')+(ckF==='arch'&&S.arch.length?`<button class="btn2 w-full dngb" data-a="cclear">ล้างคลังถาวร</button>`:'')
  +`<div class="space-y-3">${sh.map(c=>ckItem(c,ckF==='arch')).join('')||empty(ckF==='todo'?'ไม่มีภารกิจค้าง 🎉':ckF==='done'?'ยังไม่มีรายการที่เสร็จ':'คลังว่าง')}</div>`+(L.length>ckN?`<button class="btn2 w-full" data-a="more">แสดงเพิ่ม (เหลือ ${L.length-ckN})</button>`:'')},
-notes:()=>{if(editing!==null){const n=S.notes.find(x=>x.id===editing)||{},cats=Object.keys(S.cats);
+notes:()=>{if(editing!==null){const n=S.notes.find(x=>x.id===editing)||{},cats=ordCats('cord',Object.keys(S.cats));
  return secx(n.id?'แก้ไขโน้ต':'โน้ตใหม่','ncancel',fld('หมวดหมู่ *',`<input id="nc" placeholder="เช่น รหัสผ่าน, ธนาคาร, งาน" value="${esc(n.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
  +(cats.length?`<div class="flex flex-wrap gap-2">${cats.map(c=>`<button type="button" class="chip" data-a="pickcat" data-c="${esc(c)}" style="border-color:${catC(c)}">${esc(c)}</button>`).join('')}</div>`:'')
  +fld('หัวข้อ',`<input id="nt" placeholder="ไม่บังคับ" value="${esc(n.t||'')}">`)
@@ -314,9 +321,9 @@ notes:()=>{if(editing!==null){const n=S.notes.find(x=>x.id===editing)||{},cats=O
  +TB+`<div id="nh" class="ed" contenteditable data-ph="พิมพ์หรือวางเนื้อหาที่นี่ (คัดลอกมาจากที่อื่นก็ได้)">${n.h||''}</div>`
   +fld('🔗 ลิงก์ (เว็บไซต์ / Facebook / Shopee)',`<div id="nlk" class="space-y-3">${(n.ln&&n.ln.length?n.ln:[{}]).map(lkRow).join('')}</div><button type="button" class="btn2 w-full" data-a="nladd">+ เพิ่มลิงก์</button>`,'ใส่ได้หลายลิงก์ • ตอนอ่านโน้ตจะแสดงเป็นปุ่มสั้น ๆ (เช่น Facebook, Shopee) แตะเพื่อเปิดลิงก์นั้นได้เลย')
   +fld('🖼️ รูปภาพ (ไม่บังคับ)',`<textarea id="nim" rows="3" inputmode="url" autocomplete="off" placeholder="ลิงก์โฟลเดอร์ หรือ ลิงก์ไฟล์รูปใน Google Drive (1 ลิงก์ต่อบรรทัด)">${esc(imLinks(n.im))}</textarea>`,'วางลิงก์โฟลเดอร์ Drive หรือลิงก์ไฟล์รูปได้หลายลิงก์ • ตอนแตะเพื่ออ่านจะแสดงภาพย่อสูงสุด 3 รูป พร้อม “+จำนวนที่เหลือ” แตะเพื่อดูทั้งหมด • ต้องตั้งค่า Google Sheets Backend ก่อน (เหมือนอัลบั้ม)')+HM(n.hm)+`<button class="btn w-full" data-a="nsave">💾 บันทึก</button>`)}
- const cs=[...new Set(S.notes.map(n=>n.cat||'ทั่วไป'))],cnt=c=>S.notes.filter(n=>(n.cat||'ทั่วไป')===c).length,L=S.notes.filter(n=>nCat==='ทั้งหมด'||(n.cat||'ทั่วไป')===nCat);
- return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+(cs.length?`<div class="chips">${chip(nCat==='ทั้งหมด','ncat','ทั้งหมด','ทั้งหมด '+S.notes.length)}${cs.map(c=>`<button class="chip" data-a="ncat" data-c="${esc(c)}" style="border-color:${catC(c)};${nCat===c?`background:${catC(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${cnt(c)}</button>`).join('')}</div>`:'')+`<div class="space-y-3">${L.map(noteCard).join('')||empty('ยังไม่มีโน้ต')}</div>`},
-alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
+ const cs=ordCats('cord',[...new Set(S.notes.map(n=>n.cat||'ทั่วไป'))]),cnt=c=>S.notes.filter(n=>(n.cat||'ทั่วไป')===c).length,L=S.notes.filter(n=>nCat==='ทั้งหมด'||(n.cat||'ทั่วไป')===nCat);
+ return `<button class="btn w-full" data-a="nnew">+ โน้ตใหม่</button>`+(nOrd&&cs.length>1?ordPanel('nmv','nordx',cs,cnt,catC):'')+(!nOrd&&cs.length?`<div class="chips">${chip(nCat==='ทั้งหมด','ncat','ทั้งหมด','ทั้งหมด '+S.notes.length)}${cs.map(c=>`<button class="chip" data-a="ncat" data-c="${esc(c)}" style="border-color:${catC(c)};${nCat===c?`background:${catC(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${cnt(c)}</button>`).join('')}${cs.length>1?chip(0,'nord','','⇅ จัดลำดับหมวด'):''}</div>`:'')+(nOrd?'':sortBar('nsort',S.set.nsort||'new',NSO))+`<div class="space-y-3">${sortL(L,S.set.nsort).map(noteCard).join('')||empty('ยังไม่มีโน้ต')}</div>`},
+alb:()=>{const acs=ordCats('aord',Object.keys(S.acats)),ac=c=>PAL[S.acats[c]??0];
  if(aEd!==null){const a=S.alb.find(x=>x.id===aEd)||{};
   return secx(a.id?'แก้ไขอัลบั้ม':'อัลบั้มใหม่','aclose',fld('ชื่ออัลบั้ม',`<input id="an" placeholder="เช่น เอกสารสำคัญ" value="${esc(a.t||'')}">`)
   +fld('หมวดหมู่',`<input id="ac" placeholder="เช่น ครอบครัว, งาน, บัตรประชาชน" value="${esc(a.cat||'')}">`,'พิมพ์หมวดใหม่ได้เลย หรือแตะเลือกจากหมวดที่เคยใช้')
@@ -324,9 +331,9 @@ alb:()=>{const acs=Object.keys(S.acats),ac=c=>PAL[S.acats[c]??0];
   +fld('ลิงก์โฟลเดอร์ Google Drive',`<input id="au" inputmode="url" placeholder="https://drive.google.com/drive/folders/…" value="${a.f?'https://drive.google.com/drive/folders/'+esc(a.f):''}">`)
   +`<details ${a.api?'open':''}><summary class="text-sm text-slate-300 py-2">รูปอยู่ในบัญชี Google อื่น? (ไม่บังคับ)</summary><p class="text-xs text-slate-500 mb-3">ใส่ URL/Token ของสคริปต์ที่ Deploy จากบัญชีเจ้าของรูป ถ้าเว้นว่างจะใช้ค่าในหน้าตั้งค่า</p><div class="space-y-4">`+fld('Apps Script URL ของบัญชีนั้น',`<input id="aapi" class="secret" autocomplete="off" inputmode="url" value="${esc(a.api||'')}">`)+fld('Token ของสคริปต์นั้น',`<input id="atok" class="secret" autocomplete="off" value="${esc(a.tok||'')}">`)+`</div></details>`+HM(a.hm)+`<button class="btn w-full" data-a="asave">💾 บันทึก</button>`
   +(a.id?`<button class="btn2 w-full dngb" data-a="adel" data-i="${a.id}">ลบอัลบั้มนี้</button>`:''))}
- const cs=[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))],L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
- return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`+(cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}</div>`:'')
-  +`<div class="space-y-3">${L.map(a=>{const cat=a.cat||'ทั่วไป',c=ac(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id,a.hm)}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
+ const cs=ordCats('aord',[...new Set(S.alb.map(a=>a.cat||'ทั่วไป'))]),acnt=c=>S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length,L=S.alb.filter(a=>aCat==='ทั้งหมด'||(a.cat||'ทั่วไป')===aCat);
+ return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`+(aOrd&&cs.length>1?ordPanel('amv','aordx',cs,acnt,ac):'')+(!aOrd&&cs.length?`<div class="chips">${chip(aCat==='ทั้งหมด','acat','ทั้งหมด','ทั้งหมด '+S.alb.length)}${cs.map(c=>`<button class="chip" data-a="acat" data-c="${esc(c)}" style="border-color:${ac(c)};${aCat===c?`background:${ac(c)};color:#04120d;font-weight:700`:''}">${esc(c)} ${S.alb.filter(a=>(a.cat||'ทั่วไป')===c).length}</button>`).join('')}${cs.length>1?chip(0,'aord','','⇅ จัดลำดับหมวด'):''}</div>`:'')+(aOrd?'':sortBar('asort',S.set.asort||'new',ASO))
+  +`<div class="space-y-3">${sortL(L,S.set.asort).map(a=>{const cat=a.cat||'ทั่วไป',c=ac(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id,a.hm)}).join('')||empty('ยังไม่มีอัลบั้ม')}</div>`},
 pl:()=>{const PS=plNorm(),gs=PS.map(p=>p.n);if(plG!=='ทั้งหมด'&&!gs.includes(plG))plG='ทั้งหมด';
  if(pEd!==null){const d=pEd?by('pl',pEd)||{}:{};return secx(pEd?'แก้ไขเพลง':'เพิ่มเพลง','mclose',fld('ชื่อเพลง',`<input id="pl_t" placeholder="เช่น ลูกกรุง Acoustic" value="${esc(d.t||'')}">`)+fld('ลิงก์เพลง',`<input id="pl_u" inputmode="url" placeholder="YouTube / Spotify / SoundCloud" value="${esc(d.u||'')}">`,'YouTube / Spotify / SoundCloud เล่นในเพลเยอร์ฝัง • ไฟล์ MP3 ใน Google Drive (ลิงก์ไฟล์) เล่นต่อได้ตอนปิดจอ • วางลิงก์โฟลเดอร์ Drive เพื่อนำเข้าทุกเพลงในโฟลเดอร์ (ตั้งค่า Google Sheets Backend ก่อน)')+fld('เพลย์ลิสต์',`<input id="pl_g" list="pl_gl" placeholder="เช่น ลูกกรุง, ขับรถ" value="${esc(d.g||(plG!=='ทั้งหมด'?plG:''))}"><datalist id="pl_gl">${gs.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>`,'ตั้งชื่อกลุ่มเพื่อแยกเพลย์ลิสต์ (เว้นว่าง = ทั่วไป)')+`<button class="btn w-full" data-a="msave">💾 บันทึก</button>`)}
  if(plF!==null){const p=plF?PS.find(x=>x.id===plF)||{}:{};return secx(p.id?'แก้ไขเพลย์ลิสต์':'เพลย์ลิสต์ใหม่','mfclose',fld('ชื่อเพลย์ลิสต์',`<input id="pf_n" placeholder="เช่น ลูกกรุง, ขับรถ" value="${esc(p.n||'')}">`)+fld('ลิงก์โฟลเดอร์ Google Drive (ไม่บังคับ)',`<input id="pf_u" inputmode="url" placeholder="https://drive.google.com/drive/folders/…" value="${p.f?'https://drive.google.com/drive/folders/'+esc(p.f):''}">`,'1 เพลย์ลิสต์ = 1 โฟลเดอร์ • เพิ่มไฟล์ MP3 ลงโฟลเดอร์นี้ใน Drive แล้วกด “รีเฟรช” ในเพลย์ลิสต์ เพลงใหม่จะขึ้นให้ทันที (ต้องตั้งค่า Google Sheets Backend ก่อน)')+`<button class="btn w-full" data-a="mfsave">💾 บันทึก</button>`)}
@@ -385,7 +392,7 @@ const A={
  carcall:()=>{S.arch.unshift(...S.check.filter(c=>c.d));S.check=S.check.filter(c=>!c.d);toast('เก็บเข้าคลังแล้ว')},
  crest:i=>{S.check.push(by('arch',i));rm('arch',i);toast('กู้คืนแล้ว')},
  cclear:()=>{if(confirm('ลบรายการในคลังทั้งหมดถาวร?'))S.arch=[]},
- nnew:()=>{editing=0}, ncancel:()=>{editing=null}, nedit:i=>{editing=+i}, ncat:(i,e)=>{nCat=e.dataset.c},
+ nnew:()=>{editing=0}, ncancel:()=>{editing=null}, nedit:i=>{editing=+i}, ncat:(i,e)=>{nCat=e.dataset.c}, nsort:(i,e)=>{S.set.nsort=e.dataset.c}, nord:()=>{nOrd=1}, nordx:()=>{nOrd=0}, nmv:(i,e)=>mvCat('cord',S.notes,e),
  pickcat:(i,e)=>{$('#nc').value=e.dataset.c;return 1},
  fmt:(i,e)=>{const c=e.dataset.c,s=getSelection();if(!s.rangeCount||!$('#nh').contains(s.anchorNode)){toast('แตะในช่องเนื้อหา/ลากคลุมข้อความก่อน');return 1}
   document.execCommand('styleWithCSS',false,true);
@@ -409,7 +416,7 @@ const A={
  show:i=>{RV.has(+i)?RV.delete(+i):RV.add(+i)}, nexp:i=>{EX.has(+i)?EX.delete(+i):EX.add(+i)},
  ncopy:i=>{navigator.clipboard.writeText(txt(by('notes',i).h)).then(()=>toast('คัดลอกแล้ว'));return 1},
  ndel:i=>{if(confirm('ลบโน้ตนี้?')){rm('notes',i);NL.delete(String(i))}},
- acat:(i,e)=>{aCat=e.dataset.c}, pickacat:(i,e)=>{$('#ac').value=e.dataset.c;return 1},
+ acat:(i,e)=>{aCat=e.dataset.c}, asort:(i,e)=>{S.set.asort=e.dataset.c}, aord:()=>{aOrd=1}, aordx:()=>{aOrd=0}, amv:(i,e)=>mvCat('aord',S.alb,e), pickacat:(i,e)=>{$('#ac').value=e.dataset.c;return 1},
  anew:()=>{aEd=0}, aclose:()=>{aEd=null}, aedit:i=>{aEd=+i},
  asave:()=>{const t=val('#an'),m=val('#au').match(/folders\/([\w-]+)|[?&]id=([\w-]+)/),cat=val('#ac')||'ทั่วไป',api=val('#aapi'),tok=val('#atok');if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;
   if(S.acats[cat]===undefined)S.acats[cat]=Object.keys(S.acats).length%PAL.length;
