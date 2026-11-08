@@ -196,7 +196,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='2.9.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='2.10.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=b=>{const u=new Uint8Array(b);let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t)},ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -332,6 +332,7 @@ const dSwHi=(n,id='#dsw')=>document.querySelectorAll(id+' .swatch').forEach((b,i
 const krDoor=(c,i,n,a='dopen',col=dcatC,u='รายการ')=>`<button type="button" class="krdoor" data-a="${a}" data-c="${esc(c)}" style="--c:${col(c)}" aria-label="เปิดล็อคเกอร์ ${esc(c)}"><span class="krnum">No.${String(i+1).padStart(2,'0')}</span><span class="krvent"></span><span class="krplate"><b>${esc(c)}</b><small>${n} ${u}</small></span><span class="krfoot"><span class="krhint">🔒 แตะเพื่อเปิด</span></span><span class="krhandle"></span><span class="krkey"></span></button>`;
 const acatC=c=>DPAL[S.acats[c]??0]||DPAL[0];
 const aCard=a=>{const cat=dCat(a),c=acatC(cat);return card(c,`<div class="flex items-center gap-3"><div class="cover" style="border-color:${c};box-shadow:0 0 14px ${c}44">${a.cv?`<img src="${a.cv}" alt="">`:IC.img}</div><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(a.t)}</b><div class="meta mt-1.5">${tg(esc(cat),c)}${a.api?tg('บัญชีอื่น','#94A3B8'):''}</div></div>${pill(ab('aedit',a.id,IC.edit))}<span class="text-slate-500">${IC.chev}</span></div>`,'cursor-pointer" data-a="aopen" data-i="'+a.id,a.hm)};
+const renLk=(L,m,ok,old)=>{const n=(prompt('เปลี่ยนชื่อล็อคเกอร์',old)||'').trim();if(!n||n===old)return null;const ex=L.some(x=>dCat(x)===n);if(ex&&!confirm(`มีล็อคเกอร์ “${n}” อยู่แล้ว — รวมสองล็อคเกอร์เข้าด้วยกัน?`))return null;L.forEach(x=>{if(dCat(x)===old)x.cat=n});if(!ex&&m[old]!==undefined)m[n]=m[old];delete m[old];if(S[ok])S[ok]=S[ok].map(c=>c===old?n:c).filter((c,i,a)=>a.indexOf(c)===i);return n};
 const dCard=d=>{const[t,tc]=docType(d.u),c=dcatC(dCat(d));return card(c,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(t,tc)}<span class="truncate">${esc(host(d.u))}</span></div></div>${pill(`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`,ab('dcopy',d.id,IC.copy),ab('dedit',d.id,IC.edit),ab('ddel',d.id,IC.trash,'dng'))}</div>`,'',d.hm)};
 const hDoc=d=>{const[t,c]=docType(d.u),cat=dCat(d),lc=dcatC(cat);return card(lc,`<div class="flex items-center gap-3"><div class="flex-1 min-w-0"><b class="text-white break-words block leading-snug">${esc(d.t)}</b><div class="meta mt-1.5">${tg(esc(cat),lc)}${tg(t,c)}<span class="truncate">${esc(host(d.u))}</span></div></div>${hpill('docs',d.id,`<a href="${esc(d.u)}" target="_blank" rel="noopener noreferrer" aria-label="เปิดดู">${IC.open}</a>`,ab('dcopy',d.id,IC.copy))}</div>`)};
 const hm=k=>S[k].filter(x=>x.hm);
@@ -367,7 +368,7 @@ alb:()=>{const acs=ordCats('aord',[...new Set(S.alb.map(dCat))]),ac=acatC,acnt=c
   +(a.id?`<button class="btn2 w-full dngb" data-a="adel" data-i="${a.id}">ลบอัลบั้มนี้</button>`:''))}
  const cs=acs;if(aLk!==null&&!cs.includes(aLk))aLk=null;
  if(aLk!==null){const c=ac(aLk),i=cs.indexOf(aLk),L=S.alb.filter(a=>dCat(a)===aLk),an=aAn;aAn=0;
-  return `<button class="chip" data-a="aback">‹ ล็อคเกอร์ทั้งหมด</button><button class="btn w-full" data-a="anew">+ อัลบั้มใหม่ในล็อคเกอร์นี้</button>`
+  return `<div class="flex gap-2 flex-wrap"><button class="chip" data-a="aback">‹ ล็อคเกอร์ทั้งหมด</button><button class="chip" data-a="aren">✏️ เปลี่ยนชื่อล็อคเกอร์</button></div><button class="btn w-full" data-a="anew">+ อัลบั้มใหม่ในล็อคเกอร์นี้</button>`
    +`<div class="krin" style="--c:${c};box-shadow:inset 0 12px 28px rgba(0,0,0,.55),0 0 22px ${c}44"><div class="krh"><div class="krsl ${an?'kran':''}"><i></i></div><div class="krplate"><div><em>No.${String(i+1).padStart(2,'0')}</em><b>${esc(aLk)}</b></div><small>🔓 เปิดอยู่ • ${L.length} อัลบั้ม</small></div></div>`
    +sortBar('asort',S.set.asort||'new',ASO)+`<div class="space-y-3 mt-3">${sortL(L,S.set.asort).map(aCard).join('')}</div></div>`}
  return `<button class="btn w-full" data-a="anew">+ อัลบั้มใหม่</button>`
@@ -398,7 +399,7 @@ docs:()=>{const cs=ordCats('dord',[...new Set(S.docs.map(dCat))]),cnt=c=>S.docs.
   +HM(d.hm)+`<button class="btn w-full" data-a="dsave">💾 บันทึก</button>`)}
  if(dLk!==null&&!cs.includes(dLk))dLk=null;
  if(dLk!==null){const c=dcatC(dLk),i=cs.indexOf(dLk),L=S.docs.filter(d=>dCat(d)===dLk),an=dAn;dAn=0;
-  return `<button class="chip" data-a="dback">‹ ล็อคเกอร์ทั้งหมด</button><button class="btn w-full" data-a="dnew">+ เพิ่มเอกสารในล็อคเกอร์นี้</button>`
+  return `<div class="flex gap-2 flex-wrap"><button class="chip" data-a="dback">‹ ล็อคเกอร์ทั้งหมด</button><button class="chip" data-a="dren">✏️ เปลี่ยนชื่อล็อคเกอร์</button></div><button class="btn w-full" data-a="dnew">+ เพิ่มเอกสารในล็อคเกอร์นี้</button>`
    +`<div class="krin" style="--c:${c};box-shadow:inset 0 12px 28px rgba(0,0,0,.55),0 0 22px ${c}44"><div class="krh"><div class="krsl ${an?'kran':''}"><i></i></div><div class="krplate"><div><em>No.${String(i+1).padStart(2,'0')}</em><b>${esc(dLk)}</b></div><small>🔓 เปิดอยู่ • ${L.length} รายการ</small></div></div>`
    +sortBar('dsort',S.set.dsort||'new',ASO)+`<div class="space-y-3 mt-3">${sortL(L,S.set.dsort).map(dCard).join('')}</div></div>`}
  return `<button class="btn w-full" data-a="dnew">+ เพิ่มลิงก์</button>`
@@ -467,7 +468,7 @@ const A={
  show:i=>{RV.has(+i)?RV.delete(+i):RV.add(+i)}, nexp:i=>{EX.has(+i)?EX.delete(+i):EX.add(+i)},
  ncopy:i=>{navigator.clipboard.writeText(txt(by('notes',i).h)).then(()=>toast('คัดลอกแล้ว'));return 1},
  ndel:i=>{if(confirm('ลบโน้ตนี้?')){rm('notes',i);NL.delete(String(i))}},
- alk:(i,e)=>{aLk=e.dataset.c;aAn=1;krTop=1}, aback:()=>{aLk=null;krTop=1}, acolor:(i,e)=>{aClr=+e.dataset.c;dSwHi(aClr,'#asw');return 1}, asort:(i,e)=>{S.set.asort=e.dataset.c}, aord:()=>{aOrd=1}, aordx:()=>{aOrd=0}, amv:(i,e)=>mvCat('aord',S.alb,e), pickacat:(i,e)=>{$('#ac').value=e.dataset.c;aClr=null;dSwHi(S.acats[e.dataset.c],'#asw');return 1},
+ alk:(i,e)=>{aLk=e.dataset.c;aAn=1;krTop=1}, aback:()=>{aLk=null;krTop=1}, aren:()=>{const n=renLk(S.alb,S.acats,'aord',aLk);if(n===null)return 1;aLk=n;toast('เปลี่ยนชื่อล็อคเกอร์แล้ว')}, acolor:(i,e)=>{aClr=+e.dataset.c;dSwHi(aClr,'#asw');return 1}, asort:(i,e)=>{S.set.asort=e.dataset.c}, aord:()=>{aOrd=1}, aordx:()=>{aOrd=0}, amv:(i,e)=>mvCat('aord',S.alb,e), pickacat:(i,e)=>{$('#ac').value=e.dataset.c;aClr=null;dSwHi(S.acats[e.dataset.c],'#asw');return 1},
  anew:()=>{aEd=0;aClr=null}, aclose:()=>{aEd=null;aClr=null}, aedit:i=>{aEd=+i;aClr=null},
  asave:()=>{const t=val('#an'),m=val('#au').match(/folders\/([\w-]+)|[?&]id=([\w-]+)/),cat=val('#ac')||'ทั่วไป',api=val('#aapi'),tok=val('#atok');if(!t||!m)return toast('ใส่ชื่อและลิงก์โฟลเดอร์ Drive ที่ถูกต้อง')||1;
   if(aClr!==null)S.acats[cat]=aClr;else if(S.acats[cat]===undefined)S.acats[cat]=aNext();
@@ -502,7 +503,7 @@ const A={
  mall:()=>{plQueue(S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG),0,0);return 1},
  mshuf:()=>{plQueue(S.pl.filter(x=>plG==='ทั้งหมด'||(x.g||'ทั่วไป')===plG),-1,1);return 1},
  dnew:()=>{dEd=0;dClr=null}, dclose:()=>{dEd=null;dClr=null}, dedit:i=>{dEd=+i;dClr=null},
- dopen:(i,e)=>{dLk=e.dataset.c;dAn=1;krTop=1}, dback:()=>{dLk=null;krTop=1}, dord:()=>{dOrd=1}, dordx:()=>{dOrd=0}, dmv:(i,e)=>mvCat('dord',S.docs,e), dsort:(i,e)=>{S.set.dsort=e.dataset.c},
+ dopen:(i,e)=>{dLk=e.dataset.c;dAn=1;krTop=1}, dback:()=>{dLk=null;krTop=1}, dren:()=>{const n=renLk(S.docs,S.dcats,'dord',dLk);if(n===null)return 1;dLk=n;toast('เปลี่ยนชื่อล็อคเกอร์แล้ว')}, dord:()=>{dOrd=1}, dordx:()=>{dOrd=0}, dmv:(i,e)=>mvCat('dord',S.docs,e), dsort:(i,e)=>{S.set.dsort=e.dataset.c},
  pickdcat:(i,e)=>{$('#dc').value=e.dataset.c;dClr=null;dSwHi(S.dcats[e.dataset.c]);return 1}, dcolor:(i,e)=>{dClr=+e.dataset.c;dSwHi(dClr);return 1},
  dsave:()=>{const t=val('#dt'),u=val('#du'),cat=val('#dc')||'ทั่วไป';if(!t||!/^https?:\/\//.test(u))return toast('ใส่ชื่อและลิงก์ที่ขึ้นต้นด้วย https://')||1;if(dClr!==null)S.dcats[cat]=dClr;else if(S.dcats[cat]===undefined)S.dcats[cat]=dNext();const hm=hmv(),ed=dEd;if(dEd)Object.assign(by('docs',dEd),{t,u,cat,hm});else S.docs.unshift({id:uid(),t,u,cat,hm});if(ed||dLk!==null){dLk=cat;dAn=1;krTop=1}else toast('เพิ่มลงล็อคเกอร์ “'+cat+'” แล้ว');dEd=null;dClr=null},
  dcopy:i=>{navigator.clipboard.writeText(by('docs',i).u).then(()=>toast('คัดลอก URL แล้ว'));return 1},
