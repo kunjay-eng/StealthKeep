@@ -1,4 +1,4 @@
-# StealthKeep v2.18.0
+# StealthKeep v2.19.0
 ห้องนิรภัยดิจิทัลแบบ PWA (HTML + Vanilla JS + Tailwind) — ข้อมูลเข้ารหัส AES-256-GCM ในเครื่อง (คีย์มาจาก PIN ผ่าน PBKDF2)
 
 ## ติดตั้งผ่าน GitHub Pages
@@ -19,7 +19,7 @@
 ## ลิงค์ฮับ (Link Hub) — เมนูล่างขวา
 รวมระบบ Link Hub v1.0.3 เข้ามาแทนเมนู “เพิ่มเติม” (อัลบั้ม / เพลง / สร้างรูป / ตั้งค่า ย้ายไปอยู่ที่ “ทางลัด” ในหน้าแรก)
 - ไม่ตั้งค่าอะไร = **โหมดทดลอง** เก็บข้อมูลในเบราว์เซอร์เครื่องนั้น
-- ต้องการใช้ Google Sheets: สร้าง Sheet ใหม่ → Apps Script → วาง `linkhub/Code.gs` → Script properties เพิ่ม `ADMIN_PIN` → Deploy เป็น Web app (Anyone) → นำ URL `/exec` ไปใส่ `API_URL` ในไฟล์ `linkhub-config.js`
+- ต้องการใช้ Google Sheets: สร้าง Sheet ใหม่ → Apps Script → วาง `linkhub/Code.gs` → Script properties เพิ่ม `ADMIN_PIN` → Deploy เป็น Web app (Anyone) → นำ URL `/exec` ไปใส่ `API_URL` ในไฟล์ `linkhub/linkhub-config.js`
 - เป็นสคริปต์/ชีตคนละตัวกับ `Code.gs` ของ StealthKeep และข้อมูลลิงค์ฮับ **ไม่ได้เข้ารหัสในห้องนิรภัย** (เปิดด้วย Duress PIN จะไม่เห็นข้อมูลลิงค์ฮับ)
 
 ## หมายเหตุ

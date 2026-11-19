@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-<script src="linkhub-config.js"></script>
+<script src="linkhub/linkhub-config.js"></script>
 <style>
 :root{--bg:#090D16;--card:#1E293B;--acc:#10B981;--cy:#06B6D4;--amb:#F59E0B;--vio:#8B5CF6;--t1:#F8FAFC;--t2:#94A3B8}
 html,body{height:100%;background:var(--bg);color:var(--t2);font-family:Sarabun,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -173,12 +173,9 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 .shc:active{transform:scale(.96)}
 .shi{width:3.1rem;height:3.1rem;border-radius:50%;display:grid;place-items:center;font-size:1.45rem;background:color-mix(in srgb,var(--c) 22%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent)}
 .shc b{color:var(--t1);font-size:.82rem;line-height:1.15}
-.lhg{display:grid;gap:.75rem;grid-template-columns:minmax(0,1fr)}@media(min-width:560px){.lhg{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(min-width:900px){.lhg{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.lhc{position:relative;padding:.9rem;border-top:3px solid rgba(148,163,184,.25)}.lhc.on{border-top-color:#10B981}.lhc.off{border-top-color:#EF4444}
-.lhc .acts{position:absolute;top:.9rem;right:.9rem}
-.lhc>a{display:block;color:inherit;text-decoration:none}
-.lhico{width:3.2rem;height:3.2rem;border-radius:.8rem;background:#0d1320;border:1px solid rgba(148,163,184,.2);box-shadow:inset 0 0 14px rgba(6,182,212,.12);display:grid;place-items:center;font-size:1.6rem;margin-bottom:.7rem}
-.lhmeta{display:flex;justify-content:space-between;gap:.6rem;margin-top:.6rem;padding-top:.5rem;border-top:1px dashed rgba(148,163,184,.25);font-size:.72rem;color:#64748b}
+.lhg{display:grid;gap:.6rem;grid-template-columns:minmax(0,1fr)}@media(min-width:900px){.lhg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.lhc{position:relative}
+.lhico{width:2.7rem;height:2.7rem;flex:none;border-radius:.8rem;background:#0d1320;border:1px solid rgba(148,163,184,.2);box-shadow:inset 0 0 14px rgba(6,182,212,.12);display:grid;place-items:center;font-size:1.4rem}
 .lhc.on .lhst{color:#10B981}.lhc.off .lhst{color:#F87171}
 .nav{position:relative;z-index:6;align-items:flex-end}
 .nav a.mid{position:relative}
@@ -239,7 +236,7 @@ input,select,textarea{padding:.8rem 1.15rem;line-height:1.45}
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 glass px-4 py-2 text-white text-sm hidden"></div>
 
 <script>
-const VER='2.18.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
+const VER='2.19.0',$=s=>document.querySelector(s),enc=new TextEncoder(),dec=new TextDecoder();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=b=>{const u=new Uint8Array(b);let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t)},ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -788,9 +785,9 @@ try{const lf=()=>{LBC.clear();if(S&&tab==='img')lblDraw();else if(S&&tab==='alb'
 V.img=()=>{lblInit();return `<div class="flex items-center justify-between gap-2"><h2 class="text-white font-bold text-lg">🏷️ สร้างรูปฉลาก</h2><div class="flex gap-2"><button class="chip" data-l="undo">↶ เลิกทำ</button><button class="chip" data-l="reset">＋ ใหม่</button></div></div><div id="lbcfg" class="space-y-2"></div><div id="lbstg" class="lbsticky"></div><div id="lbp" class="glass p-4 space-y-3"></div><div class="grid grid-cols-3 gap-2"><button class="btn2 text-sm" style="padding:.6rem .3rem" data-l="share">📤 แชร์/พิมพ์</button><button class="btn2 text-sm" style="padding:.6rem .3rem" data-l="dl">⬇️ PNG</button><button class="btn text-sm" style="padding:.6rem .3rem" data-l="sv">💾 บันทึก</button></div><div id="lbsv"></div><div id="lbtp"></div>${lblSaved()}`};
 /* ---------- ลิงค์ฮับ (Link Hub v1.0.3) ---------- */
 const LH=window.LH_CONFIG||{API_URL:'',APP_TITLE:'ลิงค์ฮับ',VERSION:'1.0.3'},LHD=!LH.API_URL,LHSAMPLE=[{id:'a1',title:'สมุดโน้ต',subtitle:'Bank',url:'https://example.com',icon:'🖥️',category:'การเงิน'},{id:'a2',title:'แพลตฟอร์ม',subtitle:'shopee lazada',url:'https://example.com',icon:'💰',category:'ขายของ'},{id:'a3',title:'ทำจ่ายหนุ่ม',subtitle:'shopee lazada',url:'https://example.com',icon:'🧾',category:'ขายของ'},{id:'a4',title:'คำนวณค่าน้ำ',subtitle:'',url:'https://example.com',icon:'💧',category:'บริหาร'},{id:'a5',title:'ขอใบอนุญาตประกอบการ',subtitle:'',url:'https://example.com',icon:'📁',category:'บริหาร'}];
-let lhItems=[],lhCat='ทั้งหมด',lhQ='',lhEd=null,lhLd=0,lhBusy=0,lhSt={},lhPin=sessionStorage.lh_pin||'';
+let lhItems=[],lhCat='ทั้งหมด',lhEd=null,lhLd=0,lhBusy=0,lhSt={},lhPin=sessionStorage.lh_pin||'';
 const lhPins=new Set(JSON.parse(localStorage.lh_pins||'[]')),lhSame=(a,b)=>String(a)===String(b);
-function lhReset(){lhItems=[];lhCat='ทั้งหมด';lhQ='';lhEd=null;lhLd=0;lhBusy=0;lhSt={};lhPin='';sessionStorage.removeItem('lh_pin')}
+function lhReset(){lhItems=[];lhCat='ทั้งหมด';lhEd=null;lhLd=0;lhBusy=0;lhSt={};lhPin='';sessionStorage.removeItem('lh_pin')}
 function lhDemo(){try{lhItems=JSON.parse(localStorage.lh_demo||'null')||LHSAMPLE}catch(e){lhItems=LHSAMPLE}lhLd=1}
 async function lhFetch(){try{const r=await fetch(LH.API_URL+'?action=list');lhItems=(await r.json()).data||[];localStorage.lh_cache=JSON.stringify(lhItems)}catch(e){try{lhItems=JSON.parse(localStorage.lh_cache||'[]')}catch(e2){lhItems=[]}toast('ออฟไลน์ แสดงข้อมูลล่าสุดที่เก็บไว้')}lhLd=1}
 async function lhLoad(quiet){if(duress)return;lhBusy=1;try{if(LHD)lhDemo();else await lhFetch()}finally{lhBusy=0}if(S&&tab==='lh'&&!quiet)R();lhStatus()}
@@ -801,19 +798,19 @@ async function lhCall(action,item,id){
   if(!lhPin)return false;
   try{const r=await fetch(LH.API_URL,{method:'POST',body:JSON.stringify({action,item,id,pin:lhPin})}),j=await r.json();if(!j.ok){toast(j.error||'เกิดข้อผิดพลาด');lhPin='';sessionStorage.removeItem('lh_pin');return false}}catch(e){toast('เชื่อมต่อสคริปต์ไม่ได้');return false}
   await lhFetch();return true}
-const lhCard=it=>{const p=lhPins.has(it.id),st=lhSt[it.id],id=esc(it.id);return `<div class="lhc glass ${st===1?'on':st===0?'off':''}" data-lh="${id}"><a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer"><div class="lhico">${esc(it.icon||'🔗')}</div><b class="text-white block truncate">${esc(it.title)}</b><div class="text-xs truncate" style="min-height:1.1rem">${esc(it.subtitle||'')}</div><div class="lhmeta"><span class="truncate">${esc(host(it.url))}</span><span class="lhst">${st===1?'ออนไลน์':st===0?'ไม่ตอบสนอง':''}</span></div></a>${pill(`<button class="${p?'on':''}" data-a="lhpin" data-i="${id}" aria-label="ปักหมุด">${p?IC.pinF:IC.pin}</button>`,ab('lhcopy',it.id,IC.copy),ab('lhedit',it.id,IC.edit))}</div>`};
+const lhColor=c=>DPAL[[...(c||'ทั่วไป')].reduce((a,ch)=>(a*31+ch.charCodeAt(0))>>>0,7)%DPAL.length],
+lhCard=it=>{const p=lhPins.has(it.id),st=lhSt[it.id],id=esc(it.id),c=lhColor(it.category);return card(c,`<div class="flex items-center gap-3"><a class="flex items-center gap-3 flex-1 min-w-0" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none"><div class="lhico">${esc(it.icon||'🔗')}</div><div class="flex-1 min-w-0"><b class="text-white block truncate leading-snug">${esc(it.title)}</b>${it.subtitle?`<div class="text-xs text-slate-400 truncate mt-0.5">${esc(it.subtitle)}</div>`:''}<div class="meta mt-1.5">${it.category?tg(esc(it.category),c):''}<span class="truncate">${esc(host(it.url))}</span><span class="lhst">${st===1?'ออนไลน์':st===0?'ไม่ตอบสนอง':''}</span></div></div></a>${pill(`<button class="${p?'on':''}" data-a="lhpin" data-i="${id}" aria-label="ปักหมุด">${p?IC.pinF:IC.pin}</button>`,ab('lhcopy',it.id,IC.copy),ab('lhedit',it.id,IC.edit))}</div>`,`lhc ${st===1?'on':st===0?'off':''}" data-lh="${id}`,1)};
 function lhBody(){
   const cats=['ทั้งหมด',...new Set(lhItems.map(i=>i.category).filter(Boolean))];if(!cats.includes(lhCat))lhCat='ทั้งหมด';
-  const q=lhQ.trim().toLowerCase(),f=lhItems.filter(i=>(lhCat==='ทั้งหมด'||i.category===lhCat)&&((i.title||'')+' '+(i.subtitle||'')+' '+(i.category||'')).toLowerCase().includes(q)),pn=f.filter(i=>lhPins.has(i.id)),rs=f.filter(i=>!lhPins.has(i.id));
-  return `<div class="chips">${cats.map(c=>chip(c===lhCat,'lhcat',c,c)).join('')}</div>`+(!f.length?empty('ไม่พบระบบงาน ลองค้นด้วยคำอื่น หรือกด “+ เพิ่มระบบงาน”'):(pn.length?`<h3 class="text-sm text-slate-400 mt-3 mb-2">📌 ปักหมุด</h3><div class="lhg">${pn.map(lhCard).join('')}</div>`:'')+(rs.length?`<h3 class="text-sm text-slate-400 mt-3 mb-2">${pn.length?'ระบบอื่นๆ':'ทุกระบบ'}</h3><div class="lhg">${rs.map(lhCard).join('')}</div>`:''))}
+  const f=lhItems.filter(i=>lhCat==='ทั้งหมด'||i.category===lhCat),pn=f.filter(i=>lhPins.has(i.id)),rs=f.filter(i=>!lhPins.has(i.id));
+  return `<div class="chips">${cats.map(c=>chip(c===lhCat,'lhcat',c,c)).join('')}</div>`+(!f.length?empty('ยังไม่มีระบบงาน — กด “+ เพิ่มระบบงาน”'):(pn.length?`<h3 class="text-sm text-slate-400 mt-3 mb-2">📌 ปักหมุด</h3><div class="lhg">${pn.map(lhCard).join('')}</div>`:'')+(rs.length?`<h3 class="text-sm text-slate-400 mt-3 mb-2">${pn.length?'ระบบอื่นๆ':'ทุกระบบ'}</h3><div class="lhg">${rs.map(lhCard).join('')}</div>`:''))}
 V.lh=()=>{
   const cap=`<div class="krcap"><span>🔗 ${esc(LH.APP_TITLE||'ลิงค์ฮับ')}</span><span>v${esc(LH.VERSION||'')}${LHD?' · โหมดทดลอง':''}</span></div>`;
   if(duress)return cap+empty('ยังไม่มีระบบงาน');
   if(lhEd!==null){const it=lhEd?(lhItems.find(x=>lhSame(x.id,lhEd))||{}):{},cs=[...new Set(lhItems.map(i=>i.category).filter(Boolean))];
     return secx(it.id?'แก้ไขระบบงาน':'เพิ่มระบบงาน','lhcancel',fld('ชื่อระบบ',`<input id="lht" autocomplete="off" value="${esc(it.title||'')}">`)+fld('คำอธิบายสั้น',`<input id="lhs" autocomplete="off" value="${esc(it.subtitle||'')}">`)+fld('ลิงก์ (URL)',`<input id="lhu" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(it.url||'')}">`)+fld('ไอคอน (อีโมจิ)',`<input id="lhi" maxlength="4" autocomplete="off" placeholder="📁" value="${esc(it.icon||'')}">`)+fld('หมวดหมู่',`<input id="lhc" list="lhcats" autocomplete="off" placeholder="เช่น การเงิน" value="${esc(it.category||'')}"><datalist id="lhcats">${cs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`)+`<button class="btn w-full" data-a="lhsave">💾 บันทึก</button>`+(it.id?`<button class="btn2 w-full dngb" data-a="lhdel">🗑️ ลบ</button>`:''))}
   if(!lhLd&&!lhBusy){if(LHD)lhDemo();else lhLoad()}
-  return cap+`<button class="btn w-full" data-a="lhnew">+ เพิ่มระบบงาน</button><input id="lhq" type="search" placeholder="ค้นหาระบบงาน…" autocomplete="off" value="${esc(lhQ)}"><div id="lhbody">${lhLd?lhBody():empty('กำลังโหลด…')}</div>`};
-$('#view').addEventListener('input',ev=>{if(ev.target.id==='lhq'){lhQ=ev.target.value;const b=$('#lhbody');if(b&&lhLd)b.innerHTML=lhBody()}});
+  return cap+`<button class="btn w-full" data-a="lhnew">+ เพิ่มระบบงาน</button><div id="lhbody">${lhLd?lhBody():empty('กำลังโหลด…')}</div>`};
 Object.assign(A,{
  lhnew:()=>{if(duress)return 1;lhEd=0},lhcancel:()=>{lhEd=null},lhedit:i=>{if(duress)return 1;lhEd=String(i)},lhcat:(i,e)=>{lhCat=e.dataset.c},
  lhpin:i=>{if(duress)return 1;const it=lhItems.find(x=>lhSame(x.id,i));if(!it)return 1;lhPins.has(it.id)?lhPins.delete(it.id):lhPins.add(it.id);localStorage.lh_pins=JSON.stringify([...lhPins])},
