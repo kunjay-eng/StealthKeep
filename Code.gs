@@ -1,6 +1,7 @@
-// StealthKeep backend v2.2.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
+// StealthKeep backend v2.4.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
 // บัญชีที่ Deploy สคริปต์นี้ ต้องเปิดโฟลเดอร์รูปได้ (เป็นเจ้าของ หรือถูกแชร์ให้)
 const TOKEN = 'เปลี่ยนเป็นรหัสลับของคุณ';
+const BK_FOLDER = 'StealthKeep Backups'; // โฟลเดอร์ใน Google Drive ที่เก็บไฟล์สำรอง (สร้างให้อัตโนมัติ)
 const sh = () => { const s = SpreadsheetApp.getActiveSpreadsheet(); return s.getSheetByName('Vault') || s.insertSheet('Vault'); };
 const out = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 // ขอรูปขนาด ~1280px ผ่านสิทธิ์ของบัญชีเจ้าของสคริปต์ (เร็วกว่าไฟล์เต็ม)
@@ -95,10 +96,49 @@ function readBlob() { // อ่านได้ทั้งรูปแบบใ�
   return n < 1 ? '' : s.getRange(1, 1, n, 1).getValues().map(r => String(r[0])).join('');
 }
 
+// บันทึกไฟล์สำรอง (เข้ารหัสแล้วจากแอป) ลงโฟลเดอร์ใน Google Drive ของเจ้าของสคริปต์ — ไม่ทับไฟล์เดิม
+function driveBackup(b) {
+  const content = String(b.content || '');
+  let ok = false;
+  try { ok = JSON.parse(content).app === 'StealthKeep'; } catch (x) {}
+  if (!ok) return { ok: false, error: 'not a StealthKeep backup' };
+  let name = String(b.name || '');
+  if (!/^stealthkeep-backup-[\w.\-]+\.json$/.test(name)) name = 'stealthkeep-backup-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd-HHmmss') + '.json';
+  const it = DriveApp.getFoldersByName(BK_FOLDER);
+  const fo = it.hasNext() ? it.next() : DriveApp.createFolder(BK_FOLDER);
+  const f = fo.createFile(name, content, 'application/json');
+  return { ok: true, name: f.getName(), url: f.getUrl(), folder: BK_FOLDER };
+}
+
+// ---- กู้คืนจาก Drive: รายการไฟล์สำรอง (ใหม่สุดก่อน สูงสุด 30) และอ่านเนื้อไฟล์ — จำกัดเฉพาะไฟล์ในโฟลเดอร์สำรองเท่านั้น ----
+const BK_RE = /^stealthkeep-backup-[\w.\-]+\.json$/;
+function bkFolderOrNull() { const it = DriveApp.getFoldersByName(BK_FOLDER); return it.hasNext() ? it.next() : null; }
+function bkList() {
+  const fo = bkFolderOrNull(), res = [];
+  if (!fo) return res;
+  const it = fo.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (BK_RE.test(f.getName())) res.push({ id: f.getId(), name: f.getName(), size: f.getSize(), at: f.getDateCreated().getTime() }); }
+  res.sort((a, b) => b.at - a.at);
+  return res.slice(0, 30);
+}
+function bkGet(id) {
+  const fo = bkFolderOrNull();
+  if (!fo) throw new Error('no backup folder');
+  const f = DriveApp.getFileById(id);
+  let inside = false;
+  const ps = f.getParents();
+  while (ps.hasNext()) { if (ps.next().getId() === fo.getId()) inside = true; }
+  if (!inside || !BK_RE.test(f.getName())) throw new Error('not a backup file');
+  return f.getBlob().getDataAsString();
+}
+
 function doGet(e) {
   const p = e.parameter;
   try {
     if (p.token !== TOKEN) return out({ ok: false, error: 'bad token' });
+    if (p.action === 'bklist') return out({ ok: true, files: bkList() });
+    if (p.action === 'bkget') return out({ ok: true, content: bkGet(String(p.id || '')) });
+    if (p.action === 'ver') return out({ ok: true, ver: '2.4.0', drive: 1 }); // แอปใช้เช็คว่า Deploy โค้ดใหม่แล้ว ก่อนส่งไฟล์สำรองขึ้น Drive
     if (p.action === 'folder') { // รายชื่อรูป + (ถ้าไม่ส่ง noimg=1) รูปแรกที่ต้องแสดงมาในรอบเดียว
       const files = list(p.id);
       if (!files.length) return out({ ok: true, files: files });
@@ -117,6 +157,8 @@ function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
     if (b.token !== TOKEN) return out({ ok: false, error: 'bad token' });
+    if (b.action === 'drivebackup') return out(driveBackup(b));
+    if (b.action) return out({ ok: false, error: 'unknown action' }); // กันคำสั่งที่ไม่รู้จักไปเขียนทับข้อมูลบนชีต
     writeBlob(String(b.blob || '')); // เก็บเฉพาะข้อมูลที่เข้ารหัสแล้ว
     return out({ ok: true });
   } catch (err) { return out({ ok: false, error: String(err) }); }
