@@ -1,4 +1,4 @@
-# StealthKeep v2.23.0
+# StealthKeep v2.24.0
 ห้องนิรภัยดิจิทัลแบบ PWA (HTML + Vanilla JS + Tailwind) — ข้อมูลเข้ารหัส AES-256-GCM ในเครื่อง (คีย์มาจาก PIN ผ่าน PBKDF2)
 
 ## ติดตั้งผ่าน GitHub Pages
@@ -14,6 +14,7 @@
 1. สร้าง Google Sheet → Extensions → Apps Script → วางโค้ดจาก `Code.gs` แก้ `TOKEN`
 2. Deploy → New deployment → Web app (Execute as: Me, Who has access: Anyone)
 3. นำ URL + Token ไปใส่ในแอป: ตั้งค่า → Google Sheets Backend
+3.1 **ขอสิทธิ์ครั้งแรก:** ใน Apps Script เลือกฟังก์ชัน `authorize` → ▶ Run → อนุญาตสิทธิ์ (ถ้าเจอ error สิทธิ์ DriveApp ตอนสำรองขึ้น Drive ให้ทำข้อนี้ แล้ว Deploy New version) — ถ้าเปิดแสดงไฟล์ `appsscript.json` ไว้ ให้ใช้ scope ตามไฟล์ที่แนบมา
 4. **ทุกครั้งที่แก้ `Code.gs`** ต้อง Deploy → Manage deployments → ✏️ → Version: New version (ไม่เช่นนั้นสคริปต์ยังเป็นโค้ดเก่า)
 
 ## เช็คลิสต์: หัวข้องาน (หลายเช็คลิสต์ / เช็คลิสต์เดียว)

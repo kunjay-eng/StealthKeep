@@ -1,4 +1,4 @@
-// StealthKeep backend v2.4.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
+// StealthKeep backend v2.5.0 – วางใน Google Apps Script แล้ว Deploy เป็น Web app (Execute as: Me, Access: Anyone)
 // บัญชีที่ Deploy สคริปต์นี้ ต้องเปิดโฟลเดอร์รูปได้ (เป็นเจ้าของ หรือถูกแชร์ให้)
 const TOKEN = 'เปลี่ยนเป็นรหัสลับของคุณ';
 const BK_FOLDER = 'StealthKeep Backups'; // โฟลเดอร์ใน Google Drive ที่เก็บไฟล์สำรอง (สร้างให้อัตโนมัติ)
@@ -132,13 +132,26 @@ function bkGet(id) {
   return f.getBlob().getDataAsString();
 }
 
+// ---- ขอสิทธิ์ใช้งาน Drive (รันครั้งเดียว) ----
+// ถ้าเจอ "คุณไม่ได้รับอนุญาตให้เรียกใช้ DriveApp.Folder.createFile":
+// เปิด Apps Script → เลือกฟังก์ชัน authorize ที่แถบด้านบน → กด ▶ Run → Review permissions → เลือกบัญชี → Advanced → Go to ... (unsafe) → Allow
+// แล้ว Deploy → Manage deployments → ✏️ → Version: New version → Deploy
+function authorize() {
+  const fo = bkFolderOrNull() || DriveApp.createFolder(BK_FOLDER); // ขอสิทธิ์ Drive (อ่าน/เขียน/สร้างโฟลเดอร์)
+  const f = fo.createFile('authorize-test.txt', 'ok');            // ทดสอบสร้างไฟล์ (ขอสิทธิ์เขียนไฟล์)
+  f.setTrashed(true);                                              // ลบไฟล์ทดสอบทิ้ง
+  SpreadsheetApp.getActiveSpreadsheet().getName();                 // ขอสิทธิ์ Sheets
+  UrlFetchApp.fetch('https://www.googleapis.com/generate_204', { muteHttpExceptions: true }); // ขอสิทธิ์เชื่อมต่อภายนอก
+  Logger.log('✅ อนุญาตสิทธิ์สำเร็จ — ตอนนี้ Deploy เป็น New version ได้เลย');
+}
+
 function doGet(e) {
   const p = e.parameter;
   try {
     if (p.token !== TOKEN) return out({ ok: false, error: 'bad token' });
     if (p.action === 'bklist') return out({ ok: true, files: bkList() });
     if (p.action === 'bkget') return out({ ok: true, content: bkGet(String(p.id || '')) });
-    if (p.action === 'ver') return out({ ok: true, ver: '2.4.0', drive: 1 }); // แอปใช้เช็คว่า Deploy โค้ดใหม่แล้ว ก่อนส่งไฟล์สำรองขึ้น Drive
+    if (p.action === 'ver') return out({ ok: true, ver: '2.5.0', drive: 1 }); // แอปใช้เช็คว่า Deploy โค้ดใหม่แล้ว ก่อนส่งไฟล์สำรองขึ้น Drive
     if (p.action === 'folder') { // รายชื่อรูป + (ถ้าไม่ส่ง noimg=1) รูปแรกที่ต้องแสดงมาในรอบเดียว
       const files = list(p.id);
       if (!files.length) return out({ ok: true, files: files });
